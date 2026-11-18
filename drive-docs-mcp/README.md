@@ -96,6 +96,12 @@ On Render, append `,name=folderId` to `DRIVE_ROOTS` and save; the service restar
 - The refresh token has the `drive` scope (needed to edit files the app did not create). The code only reaches the roots, but the token itself could reach the whole Drive: keep it in Render's environment only. Revoke it at [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
 - Every tool call is logged with its name and path (never contents).
 
+## Current deployment
+
+- Service `drive-docs-mcp` on Render, roots `xapiems` and `investments`.
+- The refresh token belongs to **cardonacarlos9a**. New files the connector creates are owned by that account and use its 15 GB; edits keep each file's owner.
+- To move new files to **cardonacarlosd** (the 5 TB plan): get a new refresh token in the OAuth Playground signed in as cardonacarlosd (same client), replace `GOOGLE_REFRESH_TOKEN` on Render, then remove `toolbox` at myaccount.google.com/permissions on cardonacarlos9a.
+
 ## Development
 
 ```bash
