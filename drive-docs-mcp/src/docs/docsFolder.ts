@@ -47,6 +47,8 @@ export class DocsFolder {
   constructor(
     private readonly drive: DriveApi,
     private readonly rootId: string,
+    /** Root name shown before paths in error messages ("xapiems/backlog/…"). */
+    private readonly label = '',
   ) {}
 
   async list(path = '', recursive = false): Promise<Entry[]> {
@@ -79,7 +81,7 @@ export class DocsFolder {
       return { path: joinPath(names), version: updated.modifiedTime, created: false };
     }
 
-    if (expectedVersion) throw new ToolError(`${path} does not exist, so it cannot match expected_version`);
+    if (expectedVersion) throw new ToolError(`${this.show(path)} does not exist, so it cannot match expected_version`);
     const name = names.at(-1) as string;
     const parentId = await this.ensureFolders(names.slice(0, -1), listing);
     const created = await this.drive.createText(parentId, name, content, mimeForName(name));
@@ -102,9 +104,9 @@ export class DocsFolder {
 
     const current = await this.drive.downloadText(item.id);
     const count = current.split(oldString).length - 1;
-    if (count === 0) throw new ToolError(`old_string was not found in ${path}`);
+    if (count === 0) throw new ToolError(`old_string was not found in ${this.show(path)}`);
     if (count > 1 && !options.replaceAll) {
-      throw new ToolError(`old_string appears ${count} times in ${path}; add surrounding text or set replace_all`);
+      throw new ToolError(`old_string appears ${count} times in ${this.show(path)}; add surrounding text or set replace_all`);
     }
 
     const next = options.replaceAll ? current.split(oldString).join(newString) : current.replace(oldString, () => newString);
@@ -120,8 +122,8 @@ export class DocsFolder {
     const source = await this.locateExisting(fromNames, listing);
 
     const isInsideItself = toNames.length > fromNames.length && joinPath(toNames).startsWith(`${joinPath(fromNames)}/`);
-    if (isInsideItself) throw new ToolError(`Cannot move ${from} inside itself`);
-    if (await this.locate(toNames, listing)) throw new ToolError(`${to} already exists`);
+    if (isInsideItself) throw new ToolError(`Cannot move ${this.show(from)} inside itself`);
+    if (await this.locate(toNames, listing)) throw new ToolError(`${this.show(to)} already exists`);
 
     const targetParentId = await this.ensureFolders(toNames.slice(0, -1), listing);
     await this.drive.move(source.item.id, source.parentId, targetParentId, toNames.at(-1) as string);
@@ -155,7 +157,7 @@ export class DocsFolder {
   private async child(folderId: string, name: string, listing: Listing, shownPath: string): Promise<DriveItem | undefined> {
     const matches = (await this.children(folderId, listing)).filter((item) => item.name === name);
     if (matches.length > 1) {
-      throw new ToolError(`${shownPath} matches ${matches.length} items with the same name; rename or remove the duplicates in Drive`);
+      throw new ToolError(`${this.show(shownPath)} matches ${matches.length} items with the same name; rename or remove the duplicates in Drive`);
     }
     return matches[0];
   }
@@ -168,7 +170,7 @@ export class DocsFolder {
       const item = await this.child(parentId, name, listing, shown);
       if (!item) return undefined;
       if (index === names.length - 1) return { item, parentId };
-      if (!isFolder(item)) throw new ToolError(`${shown} is a file, not a folder`);
+      if (!isFolder(item)) throw new ToolError(`${this.show(shown)} is a file, not a folder`);
       parentId = item.id;
     }
     return undefined;
@@ -176,14 +178,14 @@ export class DocsFolder {
 
   private async locateExisting(names: readonly string[], listing: Listing): Promise<Located> {
     const found = await this.locate(names, listing);
-    if (!found) throw new ToolError(`${joinPath(names)} was not found`);
+    if (!found) throw new ToolError(`${this.show(joinPath(names))} was not found`);
     return found;
   }
 
   private async folderIdAt(names: readonly string[], listing: Listing): Promise<string> {
     if (names.length === 0) return this.rootId;
     const { item } = await this.locateExisting(names, listing);
-    if (!isFolder(item)) throw new ToolError(`${joinPath(names)} is a file, not a folder`);
+    if (!isFolder(item)) throw new ToolError(`${this.show(joinPath(names))} is a file, not a folder`);
     return item.id;
   }
 
@@ -193,7 +195,7 @@ export class DocsFolder {
     for (const [index, name] of names.entries()) {
       const shown = joinPath(names.slice(0, index + 1));
       const existing = await this.child(parentId, name, listing, shown);
-      if (existing && !isFolder(existing)) throw new ToolError(`${shown} is a file, not a folder`);
+      if (existing && !isFolder(existing)) throw new ToolError(`${this.show(shown)} is a file, not a folder`);
       if (existing) {
         parentId = existing.id;
         continue;
@@ -216,23 +218,27 @@ export class DocsFolder {
     }
   }
 
+  private show(path: string): string {
+    return this.label ? `${this.label}/${path}` : path;
+  }
+
   // --- checks -------------------------------------------------------------------------------
 
   private assertEditableText(item: DriveItem, path: string): void {
-    if (isFolder(item)) throw new ToolError(`${path} is a folder`);
+    if (isFolder(item)) throw new ToolError(`${this.show(path)} is a folder`);
     if (!isTextFile(item.name, item.mimeType)) {
-      throw new ToolError(`${path} is ${item.mimeType}; only plain-text files (Markdown, text, JSON, CSV, YAML…) can be read or edited`);
+      throw new ToolError(`${this.show(path)} is ${item.mimeType}; only plain-text files (Markdown, text, JSON, CSV, YAML…) can be read or edited`);
     }
-    if ((item.size ?? 0) > MAX_TEXT_BYTES) throw new ToolError(`${path} is larger than ${MAX_TEXT_BYTES} bytes`);
+    if ((item.size ?? 0) > MAX_TEXT_BYTES) throw new ToolError(`${this.show(path)} is larger than ${MAX_TEXT_BYTES} bytes`);
   }
 
   private assertVersion(item: DriveItem, expected: string | undefined, path: string): void {
     if (!expected || expected === item.modifiedTime) return;
-    throw new ToolError(`${path} changed since version ${expected} (now ${item.modifiedTime}); read it again before writing`);
+    throw new ToolError(`${this.show(path)} changed since version ${expected} (now ${item.modifiedTime}); read it again before writing`);
   }
 
   private assertSize(content: string, path: string): void {
     if (Buffer.byteLength(content, 'utf8') <= MAX_TEXT_BYTES) return;
-    throw new ToolError(`New content for ${path} is larger than ${MAX_TEXT_BYTES} bytes`);
+    throw new ToolError(`New content for ${this.show(path)} is larger than ${MAX_TEXT_BYTES} bytes`);
   }
 }

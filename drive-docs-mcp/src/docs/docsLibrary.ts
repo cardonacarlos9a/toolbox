@@ -33,7 +33,7 @@ export class DocsLibrary {
     roots: Record<string, string>,
   ) {
     for (const [name, id] of Object.entries(roots)) {
-      this.folders.set(name, new DocsFolder(drive, id));
+      this.folders.set(name, new DocsFolder(drive, id, name));
       this.rootNameById.set(id, name);
     }
   }

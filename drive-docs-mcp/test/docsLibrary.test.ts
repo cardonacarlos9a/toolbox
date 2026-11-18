@@ -50,6 +50,13 @@ describe('roots', () => {
     await rejects(library.read('finance/../xapiems/backlog/architecture.md'), /Invalid path/);
   });
 
+  it('shows full paths, with the root, in error messages', async () => {
+    await rejects(library.read('finance/missing.md'), /^finance\/missing.md was not found$/);
+    const { version } = await library.read('finance/plan.md');
+    await library.write('finance/plan.md', 'v2');
+    await rejects(library.write('finance/plan.md', 'v3', version), /^finance\/plan.md changed since version/);
+  });
+
   it('moves within a root but not across roots', async () => {
     const moved = await library.move('finance/plan.md', 'finance/2026/plan.md');
     assert.deepEqual(moved, { from: 'finance/plan.md', to: 'finance/2026/plan.md' });
