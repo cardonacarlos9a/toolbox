@@ -1,0 +1,23 @@
+# Render Blueprint: one entry per deployed project in this repo.
+services:
+  - type: web
+    name: drive-docs-mcp
+    runtime: node
+    rootDir: drive-docs-mcp
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DRIVE_ROOT_FOLDER_ID
+        sync: false
+      - key: MCP_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REFRESH_TOKEN
+        sync: false
