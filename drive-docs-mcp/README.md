@@ -43,42 +43,47 @@ scripts/get-refresh-token.ts
 | Variable | Value |
 |---|---|
 | `DRIVE_ROOT_FOLDER_ID` | Id of the Drive folder to expose (the part after `/folders/` in its URL) |
-| `MCP_SECRET` | 32+ characters, letters and digits only (`openssl rand -hex 32`) |
-| `GOOGLE_CLIENT_ID` | OAuth client (Desktop app) |
+| `MCP_SECRET` | 32+ characters. The Render Blueprint generates it (base64; `/`, `+` and `=` are fine in the URL) |
+| `GOOGLE_CLIENT_ID` | OAuth client (Web application) |
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret |
-| `GOOGLE_REFRESH_TOKEN` | From `npm run token` |
+| `GOOGLE_REFRESH_TOKEN` | From the OAuth Playground (step 2) |
 | `PORT` | Set by Render; 3000 locally |
 
 ## Setup
 
+Everything happens in the browser; nothing runs on your computer.
+
 ### 1. Google Cloud (once)
 
-1. [console.cloud.google.com](https://console.cloud.google.com): create a project (e.g. `toolbox`).
+1. [console.cloud.google.com](https://console.cloud.google.com): create a project (e.g. `toolbox`). No billing account is needed.
 2. **APIs & Services → Library**: enable **Google Drive API**.
 3. **Google Auth Platform → Branding / Audience**: user type **External**, fill the app name and emails, then **Publish app** (status *In production*).
    - Required: in *Testing*, refresh tokens expire after 7 days.
    - The app stays unverified. At sign-in Google warns about it: **Advanced → Go to … (unsafe)**. Fine for personal use.
-4. **Clients → Create client**: type **Desktop app**. Copy the client id and secret.
+4. **Clients → Create client**: type **Web application**, authorized redirect URI `https://developers.google.com/oauthplayground`. Copy the client id and secret.
 
-### 2. Refresh token (once, on a computer with a browser)
+### 2. Refresh token (once, in the OAuth Playground)
 
-```bash
-cd drive-docs-mcp
-npm ci
-GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... npm run token
-```
+1. Open [developers.google.com/oauthplayground](https://developers.google.com/oauthplayground).
+2. Gear icon (top right): tick **Use your own OAuth credentials**, paste the client id and secret. Keep *OAuth flow: Server-side* and *Access type: Offline*.
+3. Step 1: in the box at the bottom type `https://www.googleapis.com/auth/drive`, then **Authorize APIs**. Sign in with the account that owns the folder and allow access.
+4. Step 2: **Exchange authorization code for tokens**. Copy the **Refresh token**.
 
-Sign in with the account that owns the folder, allow access, and copy the printed `GOOGLE_REFRESH_TOKEN`.
+With your own credentials the Playground does not revoke the token after 24 hours (it does with its default ones). Afterwards you can remove the Playground redirect URI from the client.
+
+Alternative on a computer: `GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... npm run token` (needs a **Desktop app** client instead).
 
 ### 3. Render
 
-**New → Blueprint**, pick this repo; `render.yaml` at the repo root defines the service. Fill the variables it asks for and deploy. Check `https://<service>.onrender.com/health`.
+**New → Blueprint**, pick this repo; `render.yaml` at the repo root defines the service. Fill `DRIVE_ROOT_FOLDER_ID` and the three Google variables; `MCP_SECRET` is generated. Deploy, then check `https://<service>.onrender.com/health`.
 
-The free plan sleeps after 15 minutes idle; the first call after that can take up to a minute and may time out once. The Starter plan avoids it.
+The free plan sleeps after 15 minutes idle; the first call after that can take up to a minute and may time out once. A paid instance avoids it.
 
 ### 4. Claude
 
-**Customize → Connectors → Add → Custom → Web**, URL `https://<service>.onrender.com/mcp/<MCP_SECRET>`, no authentication. Then turn it on in the chats or project that need it.
+1. On Render, open the service's **Environment** tab and copy the value of `MCP_SECRET`.
+2. **Customize → Connectors → Add → Custom → Web**, URL `https://<service>.onrender.com/mcp/<MCP_SECRET>`, no authentication.
+3. Turn it on in the chats or project that need it.
 
 ## Security
 

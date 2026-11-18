@@ -9,7 +9,8 @@ import { createApp } from '../src/app.js';
 import { DocsFolder } from '../src/docs/docsFolder.js';
 import { FakeDrive } from './fakeDrive.js';
 
-const SECRET = 'a'.repeat(40);
+// Base64 with "/", "+" and "=", like Render's generated values.
+const SECRET = 'Ab3/9+xYz0Qw8/Lk2+Mn7Pq5Rs1Tu6Vw4Xy0Za9Bc8D=';
 const quiet = { info: () => {}, error: () => {} };
 
 let server: Server;
@@ -47,9 +48,12 @@ describe('HTTP', () => {
     assert.equal(res.status, 200);
   });
 
-  it('answers 404 to a wrong secret', async () => {
-    const res = await fetch(`${base}/mcp/wrong`, { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } });
-    assert.equal(res.status, 404);
+  it('answers 404 to a wrong or partial secret', async () => {
+    const post = (path: string) => fetch(`${base}${path}`, { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } });
+    assert.equal((await post('/mcp/wrong')).status, 404);
+    assert.equal((await post(`/mcp/${SECRET.split('/')[0]}`)).status, 404);
+    assert.equal((await post(`/mcp/${SECRET}/extra`)).status, 404);
+    assert.equal((await post('/mcp/')).status, 404);
   });
 
   it('answers 405 to GET with the right secret', async () => {
