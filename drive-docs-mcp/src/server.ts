@@ -1,6 +1,6 @@
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
-import { DocsFolder } from './docs/docsFolder.js';
+import { DocsLibrary } from './docs/docsLibrary.js';
 import { createGoogleDrive } from './drive/googleDrive.js';
 import type { Logger } from './mcp/createServer.js';
 
@@ -10,9 +10,9 @@ const log: Logger = {
 };
 
 const config = loadConfig();
-const folder = new DocsFolder(createGoogleDrive(config.google), config.rootFolderId);
-const app = createApp({ folder, secret: config.mcpSecret, log });
+const library = new DocsLibrary(createGoogleDrive(config.google), config.roots);
+const app = createApp({ library, secret: config.mcpSecret, log });
 
 app.listen(config.port, () => {
-  log.info(`drive-docs-mcp listening on port ${config.port}`);
+  log.info(`drive-docs-mcp listening on port ${config.port}; roots: ${library.rootNames.join(', ')}`);
 });

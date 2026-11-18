@@ -153,10 +153,3 @@ describe('move and trash', () => {
     await rejects(folder.trash(''), /file path is required/);
   });
 });
-
-describe('search', () => {
-  it('returns only matches under the root, with lines', async () => {
-    const hits = await folder.search('item A');
-    assert.deepEqual(hits, [{ path: 'backlog/architecture.md', lines: ['- item A'] }]);
-  });
-});

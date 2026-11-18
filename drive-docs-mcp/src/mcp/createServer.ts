@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import * as z from 'zod';
-import type { DocsFolder } from '../docs/docsFolder.js';
+import type { DocsLibrary } from '../docs/docsLibrary.js';
 import { ToolError } from '../docs/errors.js';
 
 export interface Logger {
@@ -12,19 +12,21 @@ export interface Logger {
 const text = (value: string): CallToolResult => ({ content: [{ type: 'text', text: value }] });
 const json = (value: unknown): CallToolResult => text(JSON.stringify(value, null, 2));
 
-const PATH_HELP = 'Path relative to the root folder, with "/" between folders, e.g. "backlog/README.md".';
+const PATH_HELP = 'Path starting with a root name, with "/" between folders, e.g. "xapiems/backlog/README.md".';
 const VERSION_HELP =
   'Optional. The version returned by read_file. When given, the change is refused if the file changed since then.';
 
-const INSTRUCTIONS = [
-  'Reads and edits plain-text files (Markdown, text, JSON, CSV, YAML) inside one Google Drive folder.',
-  'Paths are relative to that folder. Edits change the file in place: it keeps its Drive id and history.',
-  'Prefer edit_file for small changes; use write_file to create a file or replace all of it.',
-].join(' ');
+const instructions = (roots: string[]): string =>
+  [
+    `Reads and edits plain-text files (Markdown, text, JSON, CSV, YAML) in these Google Drive folders ("roots"): ${roots.join(', ')}.`,
+    'Every path starts with a root name, e.g. "xapiems/README.md"; list_files with an empty path shows the roots.',
+    'Edits change the file in place: it keeps its Drive id and history.',
+    'Prefer edit_file for small changes; use write_file to create a file or replace all of it.',
+  ].join(' ');
 
-/** Builds one MCP server bound to a docs folder. Cheap enough to build per request. */
-export function createMcpServer(folder: DocsFolder, log: Logger): McpServer {
-  const server = new McpServer({ name: 'drive-docs', version: '0.1.0' }, { instructions: INSTRUCTIONS });
+/** Builds one MCP server over the configured roots. Cheap enough to build per request. */
+export function createMcpServer(library: DocsLibrary, log: Logger): McpServer {
+  const server = new McpServer({ name: 'drive-docs', version: '0.2.0' }, { instructions: instructions(library.rootNames) });
 
   const run = async (tool: string, target: string, action: () => Promise<CallToolResult>): Promise<CallToolResult> => {
     log.info(`${tool} ${target}`);
@@ -42,14 +44,14 @@ export function createMcpServer(folder: DocsFolder, log: Logger): McpServer {
     'list_files',
     {
       title: 'List files',
-      description: 'Lists files and folders. Leave path empty for the root folder.',
+      description: 'Lists files and folders. Leave path empty to see the roots.',
       inputSchema: {
         path: z.string().default('').describe(PATH_HELP),
         recursive: z.boolean().default(false).describe('Also list subfolders (up to 6 levels, 500 entries).'),
       },
       annotations: { readOnlyHint: true },
     },
-    ({ path, recursive }) => run('list_files', path || '/', async () => json(await folder.list(path, recursive))),
+    ({ path, recursive }) => run('list_files', path || '/', async () => json(await library.list(path, recursive))),
   );
 
   server.registerTool(
@@ -62,7 +64,7 @@ export function createMcpServer(folder: DocsFolder, log: Logger): McpServer {
     },
     ({ path }) =>
       run('read_file', path, async () => {
-        const file = await folder.read(path);
+        const file = await library.read(path);
         return text(`path: ${file.path}\nversion: ${file.version}\n---\n${file.content}`);
       }),
   );
@@ -81,7 +83,7 @@ export function createMcpServer(folder: DocsFolder, log: Logger): McpServer {
       annotations: { destructiveHint: true, idempotentHint: true },
     },
     ({ path, content, expected_version }) =>
-      run('write_file', path, async () => json(await folder.write(path, content, expected_version))),
+      run('write_file', path, async () => json(await library.write(path, content, expected_version))),
   );
 
   server.registerTool(
@@ -101,7 +103,7 @@ export function createMcpServer(folder: DocsFolder, log: Logger): McpServer {
     },
     ({ path, old_string, new_string, replace_all, expected_version }) =>
       run('edit_file', path, async () =>
-        json(await folder.edit(path, old_string, new_string, { replaceAll: replace_all, expectedVersion: expected_version })),
+        json(await library.edit(path, old_string, new_string, { replaceAll: replace_all, expectedVersion: expected_version })),
       ),
   );
 
@@ -109,14 +111,14 @@ export function createMcpServer(folder: DocsFolder, log: Logger): McpServer {
     'move_file',
     {
       title: 'Move or rename',
-      description: 'Moves or renames a file or folder inside the root folder. Missing destination folders are created.',
+      description: 'Moves or renames a file or folder within one root. Missing destination folders are created.',
       inputSchema: {
         from: z.string().describe(PATH_HELP),
         to: z.string().describe('The new path. It must not exist yet.'),
       },
       annotations: { destructiveHint: false },
     },
-    ({ from, to }) => run('move_file', `${from} -> ${to}`, async () => json(await folder.move(from, to))),
+    ({ from, to }) => run('move_file', `${from} -> ${to}`, async () => json(await library.move(from, to))),
   );
 
   server.registerTool(
@@ -127,21 +129,21 @@ export function createMcpServer(folder: DocsFolder, log: Logger): McpServer {
       inputSchema: { path: z.string().describe(PATH_HELP) },
       annotations: { destructiveHint: true },
     },
-    ({ path }) => run('trash_file', path, async () => json(await folder.trash(path))),
+    ({ path }) => run('trash_file', path, async () => json(await library.trash(path))),
   );
 
   server.registerTool(
     'search_files',
     {
       title: 'Search',
-      description: 'Finds files under the root folder whose name or content contains the term, with up to 3 matching lines each.',
+      description: 'Finds files under the roots whose name or content contains the term, with up to 3 matching lines each.',
       inputSchema: {
         term: z.string().describe('Words to search for.'),
         limit: z.number().int().min(1).max(50).default(20).describe('Maximum number of files.'),
       },
       annotations: { readOnlyHint: true },
     },
-    ({ term, limit }) => run('search_files', term, async () => json(await folder.search(term, limit))),
+    ({ term, limit }) => run('search_files', term, async () => json(await library.search(term, limit))),
   );
 
   return server;

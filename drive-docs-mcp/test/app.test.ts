@@ -6,7 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { createApp } from '../src/app.js';
-import { DocsFolder } from '../src/docs/docsFolder.js';
+import { DocsLibrary } from '../src/docs/docsLibrary.js';
 import { FakeDrive } from './fakeDrive.js';
 
 // Base64 with "/", "+" and "=", like Render's generated values.
@@ -21,7 +21,9 @@ before(async () => {
   drive = new FakeDrive();
   const backlog = drive.addFolder('root', 'backlog');
   drive.addFile(backlog, 'architecture.md', '---\nupdated: 2026-11-12\n---\n\n- item A\n');
-  const app = createApp({ folder: new DocsFolder(drive, 'root'), secret: SECRET, log: quiet });
+  const finance = drive.addFolder('outside', 'Finance');
+  drive.addFile(finance, 'plan.md', '# Plan\n');
+  const app = createApp({ library: new DocsLibrary(drive, { xapiems: 'root', finance }), secret: SECRET, log: quiet });
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -63,8 +65,9 @@ describe('HTTP', () => {
 });
 
 describe('MCP over HTTP', () => {
-  it('lists the seven tools', async () => {
+  it('lists the seven tools and names the roots in its instructions', async () => {
     const client = await connect();
+    assert.match(client.getInstructions() ?? '', /roots"\): xapiems, finance/);
     const { tools } = await client.listTools();
     assert.deepEqual(
       tools.map((t) => t.name).sort(),
@@ -76,34 +79,35 @@ describe('MCP over HTTP', () => {
   it('reads, edits and writes through tool calls', async () => {
     const client = await connect();
 
-    const read = textOf(await client.callTool({ name: 'read_file', arguments: { path: 'backlog/architecture.md' } }));
+    const read = textOf(await client.callTool({ name: 'read_file', arguments: { path: 'xapiems/backlog/architecture.md' } }));
     const version = /version: (.+)/.exec(read)?.[1];
     assert.ok(version);
 
     const edited = await client.callTool({
       name: 'edit_file',
-      arguments: { path: 'backlog/architecture.md', old_string: '- item A\n', new_string: '- item A\n- item B\n', expected_version: version },
+      arguments: { path: 'xapiems/backlog/architecture.md', old_string: '- item A\n', new_string: '- item A\n- item B\n', expected_version: version },
     });
     assert.equal(edited.isError, undefined);
 
     const stale = await client.callTool({
       name: 'write_file',
-      arguments: { path: 'backlog/architecture.md', content: 'x', expected_version: version },
+      arguments: { path: 'xapiems/backlog/architecture.md', content: 'x', expected_version: version },
     });
     assert.equal(stale.isError, true);
     assert.match(textOf(stale), /changed since version/);
 
-    const created = await client.callTool({ name: 'write_file', arguments: { path: 'journal/new.md', content: 'hi' } });
+    const created = await client.callTool({ name: 'write_file', arguments: { path: 'xapiems/journal/new.md', content: 'hi' } });
     assert.match(textOf(created), /"created": true/);
 
     const listed = textOf(await client.callTool({ name: 'list_files', arguments: { recursive: true } }));
-    assert.match(listed, /journal\/new.md/);
+    assert.match(listed, /xapiems\/journal\/new.md/);
+    assert.match(listed, /finance\/plan.md/);
     await client.close();
   });
 
   it('returns tool errors instead of failing the request', async () => {
     const client = await connect();
-    const result = await client.callTool({ name: 'read_file', arguments: { path: '../outside/secret.md' } });
+    const result = await client.callTool({ name: 'read_file', arguments: { path: 'xapiems/../outside/secret.md' } });
     assert.equal(result.isError, true);
     assert.match(textOf(result), /Invalid path/);
     await client.close();

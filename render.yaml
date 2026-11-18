@@ -11,7 +11,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "24"
-      - key: DRIVE_ROOT_FOLDER_ID
+      - key: DRIVE_ROOTS
         sync: false
       - key: MCP_SECRET
         generateValue: true

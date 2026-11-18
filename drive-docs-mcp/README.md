@@ -1,6 +1,6 @@
 # drive-docs-mcp
 
-A remote MCP server that lets Claude read and edit plain-text files (Markdown, text, JSON, CSV, YAML) inside **one Google Drive folder**, from any Claude app (web, phone, desktop), with no computer on.
+A remote MCP server that lets Claude read and edit plain-text files (Markdown, text, JSON, CSV, YAML) inside **chosen Google Drive folders** ("roots"), from any Claude app (web, phone, desktop), with no computer on.
 
 Edits change files **in place**: same Drive id, revision history kept, and Google Drive for desktop syncs them as usual. The Google Drive connector in the directory cannot do this; it can only create new files.
 
@@ -8,15 +8,15 @@ Edits change files **in place**: same Drive id, revision history kept, and Googl
 
 | Tool | What it does |
 |---|---|
-| `list_files` | List a folder, optionally recursive |
+| `list_files` | List a folder, optionally recursive; an empty path lists the roots |
 | `read_file` | Read a text file; returns its `version` |
 | `write_file` | Create a file (and missing folders) or replace a file's whole content |
 | `edit_file` | Replace exact text in a file (once, or every occurrence) |
-| `move_file` | Move or rename a file or folder |
+| `move_file` | Move or rename a file or folder within one root |
 | `trash_file` | Move to the Drive trash (restorable for 30 days) |
 | `search_files` | Find files by name or content, with matching lines |
 
-- Paths are relative to the root folder (`backlog/README.md`). `..` is refused, and every path is resolved by walking down from the root, so nothing outside it is reachable.
+- Every path starts with a root name (`xapiems/backlog/README.md`). `..` is refused, and every path is resolved by walking down from its root, so nothing outside the roots is reachable. Search only returns files under a root.
 - `write_file` and `edit_file` take an optional `expected_version` (from `read_file`) and refuse the change if the file changed since.
 - Two items with the same name in one folder are reported, never guessed.
 
@@ -32,7 +32,8 @@ src/
 ├── app.ts               HTTP routes and the secret check
 ├── config.ts            environment variables
 ├── mcp/createServer.ts  tool definitions
-├── docs/docsFolder.ts   paths, reads, edits, moves, search (all the rules)
+├── docs/docsLibrary.ts  roots: routes "root/path" to a folder; search
+├── docs/docsFolder.ts   one root: paths, reads, edits, moves (all the rules)
 └── drive/               DriveApi interface and the Google implementation
 test/                    node:test suites with an in-memory FakeDrive
 scripts/get-refresh-token.ts
@@ -42,7 +43,7 @@ scripts/get-refresh-token.ts
 
 | Variable | Value |
 |---|---|
-| `DRIVE_ROOT_FOLDER_ID` | Id of the Drive folder to expose (the part after `/folders/` in its URL) |
+| `DRIVE_ROOTS` | `name=folderId` pairs, comma-separated: `xapiems=1k4S…,finance=1XyZ…`. Names: lowercase letters, digits, `-`, `_`. The id is the part after `/folders/` in the folder's URL |
 | `MCP_SECRET` | 32+ characters. The Render Blueprint generates it (base64; `/`, `+` and `=` are fine in the URL) |
 | `GOOGLE_CLIENT_ID` | OAuth client (Web application) |
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret |
@@ -75,7 +76,7 @@ Alternative on a computer: `GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... npm ru
 
 ### 3. Render
 
-**New → Blueprint**, pick this repo; `render.yaml` at the repo root defines the service. Fill `DRIVE_ROOT_FOLDER_ID` and the three Google variables; `MCP_SECRET` is generated. Deploy, then check `https://<service>.onrender.com/health`.
+**New → Blueprint**, pick this repo; `render.yaml` at the repo root defines the service. Fill `DRIVE_ROOTS` and the three Google variables; `MCP_SECRET` is generated. Deploy, then check `https://<service>.onrender.com/health`.
 
 The free plan sleeps after 15 minutes idle; the first call after that can take up to a minute and may time out once. A paid instance avoids it.
 
@@ -85,10 +86,14 @@ The free plan sleeps after 15 minutes idle; the first call after that can take u
 2. **Customize → Connectors → Add → Custom → Web**, URL `https://<service>.onrender.com/mcp/<MCP_SECRET>`, no authentication.
 3. Turn it on in the chats or project that need it.
 
+### Add a folder later
+
+On Render, append `,name=folderId` to `DRIVE_ROOTS` and save; the service restarts with the new root. The Google account behind the refresh token needs edit access to that folder. No change in Claude.
+
 ## Security
 
 - The URL is the password: anyone with it can edit that folder. Keep it private. To rotate, change `MCP_SECRET` on Render and update the connector URL.
-- The refresh token has the `drive` scope (needed to edit files the app did not create). The code only reaches the root folder, but the token itself could reach the whole Drive: keep it in Render's environment only. Revoke it at [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+- The refresh token has the `drive` scope (needed to edit files the app did not create). The code only reaches the roots, but the token itself could reach the whole Drive: keep it in Render's environment only. Revoke it at [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
 - Every tool call is logged with its name and path (never contents).
 
 ## Development
@@ -96,5 +101,5 @@ The free plan sleeps after 15 minutes idle; the first call after that can take u
 ```bash
 npm ci
 npm test          # build + node:test (no Google access needed)
-npm run build && DRIVE_ROOT_FOLDER_ID=... MCP_SECRET=... GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... GOOGLE_REFRESH_TOKEN=... npm start
+npm run build && DRIVE_ROOTS=name=folderId MCP_SECRET=... GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... GOOGLE_REFRESH_TOKEN=... npm start
 ```

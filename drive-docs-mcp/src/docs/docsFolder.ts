@@ -5,10 +5,6 @@ import { isTextFile, joinPath, mimeForName, splitPath } from './paths.js';
 const MAX_TEXT_BYTES = 1_000_000;
 const MAX_LIST_ENTRIES = 500;
 const MAX_LIST_DEPTH = 6;
-const MAX_ANCESTRY_DEPTH = 32;
-const SEARCH_CANDIDATES = 50;
-const MATCH_LINES_PER_FILE = 3;
-const MATCH_LINE_CHARS = 200;
 
 export interface Entry {
   path: string;
@@ -33,11 +29,6 @@ export interface EditResult {
   path: string;
   version: string;
   replacements: number;
-}
-
-export interface SearchHit {
-  path: string;
-  lines: string[];
 }
 
 interface Located {
@@ -145,23 +136,6 @@ export class DocsFolder {
     return { path: joinPath(names) };
   }
 
-  async search(term: string, limit = 20): Promise<SearchHit[]> {
-    const query = term.trim();
-    if (query === '') throw new ToolError('Search term must not be empty');
-
-    const candidates = await this.drive.searchFullText(query, SEARCH_CANDIDATES);
-    const parents = new Map<string, Promise<DriveItem>>();
-    const hits: SearchHit[] = [];
-
-    for (const item of candidates) {
-      if (hits.length >= limit) break;
-      const names = await this.pathOf(item, parents);
-      if (!names) continue;
-      hits.push({ path: joinPath(names), lines: await this.matchingLines(item, query) });
-    }
-    return hits;
-  }
-
   // --- resolution ---------------------------------------------------------------------------
 
   private filePath(path: string): string[] {
@@ -231,22 +205,6 @@ export class DocsFolder {
     return parentId;
   }
 
-  /** Path of an item relative to the root, or undefined when it is outside the root. */
-  private async pathOf(item: DriveItem, parents: Map<string, Promise<DriveItem>>): Promise<string[] | undefined> {
-    const names = [item.name];
-    let parentId = item.parents[0];
-    for (let depth = 0; depth < MAX_ANCESTRY_DEPTH; depth += 1) {
-      if (!parentId) return undefined;
-      if (parentId === this.rootId) return names;
-      const cached = parents.get(parentId) ?? this.drive.get(parentId);
-      parents.set(parentId, cached);
-      const parent = await cached;
-      names.unshift(parent.name);
-      parentId = parent.parents[0];
-    }
-    return undefined;
-  }
-
   private async collect(folderId: string, prefix: readonly string[], depth: number, out: Entry[], listing: Listing): Promise<void> {
     const items = [...(await this.children(folderId, listing))].sort((a, b) => a.name.localeCompare(b.name));
     for (const item of items) {
@@ -276,16 +234,5 @@ export class DocsFolder {
   private assertSize(content: string, path: string): void {
     if (Buffer.byteLength(content, 'utf8') <= MAX_TEXT_BYTES) return;
     throw new ToolError(`New content for ${path} is larger than ${MAX_TEXT_BYTES} bytes`);
-  }
-
-  private async matchingLines(item: DriveItem, query: string): Promise<string[]> {
-    if (isFolder(item) || !isTextFile(item.name, item.mimeType)) return [];
-    const needle = query.toLowerCase();
-    const text = await this.drive.downloadText(item.id);
-    return text
-      .split('\n')
-      .filter((line) => line.toLowerCase().includes(needle))
-      .slice(0, MATCH_LINES_PER_FILE)
-      .map((line) => line.trim().slice(0, MATCH_LINE_CHARS));
   }
 }

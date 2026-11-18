@@ -1,11 +1,11 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { type Express, type Request, type Response } from 'express';
-import type { DocsFolder } from './docs/docsFolder.js';
+import type { DocsLibrary } from './docs/docsLibrary.js';
 import { createMcpServer, type Logger } from './mcp/createServer.js';
 
 export interface AppDeps {
-  folder: DocsFolder;
+  library: DocsLibrary;
   /** The MCP endpoint is /mcp/<secret>; the secret may contain "/", "+" and "=" (base64). Anything else gets 404. */
   secret: string;
   log: Logger;
@@ -18,7 +18,7 @@ const secretMatches = (given: string, expected: string): boolean => timingSafeEq
 
 const rpcError = (code: number, message: string) => ({ jsonrpc: '2.0', error: { code, message }, id: null });
 
-export function createApp({ folder, secret, log }: AppDeps): Express {
+export function createApp({ library, secret, log }: AppDeps): Express {
   const app = express();
   app.disable('x-powered-by');
 
@@ -34,7 +34,7 @@ export function createApp({ folder, secret, log }: AppDeps): Express {
 
   // Stateless Streamable HTTP: every POST gets its own server and transport, so restarts lose nothing.
   app.post('/mcp/*secret', guard, express.json({ limit: '2mb' }), async (req, res) => {
-    const server = createMcpServer(folder, log);
+    const server = createMcpServer(library, log);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => {
       void transport.close();
