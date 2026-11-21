@@ -33,7 +33,8 @@ export function createApp({ library, secret, log }: AppDeps): Express {
   };
 
   // Stateless Streamable HTTP: every POST gets its own server and transport, so restarts lose nothing.
-  app.post('/mcp/*secret', guard, express.json({ limit: '2mb' }), async (req, res) => {
+  // 4 MB: room for one upload piece (2 MiB, ~2.8 MB as base64) plus the JSON-RPC envelope.
+  app.post('/mcp/*secret', guard, express.json({ limit: '4mb' }), async (req, res) => {
     const server = createMcpServer(library, log);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => {

@@ -2,6 +2,7 @@ import { isFolder, type DriveApi, type DriveItem } from '../drive/types.js';
 import { DocsFolder, type EditResult, type Entry, type FileContent, type WriteResult } from './docsFolder.js';
 import { ToolError } from './errors.js';
 import { isTextFile, joinPath, splitPath } from './paths.js';
+import { sendChunk, type ChunkResult, type UploadStart } from './uploads.js';
 
 const SEARCH_CANDIDATES = 50;
 const MAX_ANCESTRY_DEPTH = 32;
@@ -92,6 +93,17 @@ export class DocsLibrary {
     const { root, folder, rest } = this.route(path);
     const result = await folder.trash(rest);
     return { path: `${root}/${result.path}` };
+  }
+
+  async startUpload(path: string, size: number, mimeType?: string): Promise<UploadStart> {
+    const { root, folder, rest } = this.route(path);
+    const result = await folder.startUpload(rest, size, mimeType);
+    return { ...result, path: `${root}/${result.path}` };
+  }
+
+  /** The upload id already names the target file, so pieces need no path. */
+  uploadChunk(uploadId: string, offset: number, total: number, base64Content: string): Promise<ChunkResult> {
+    return sendChunk(this.drive, uploadId, offset, total, base64Content);
   }
 
   /** One Drive search, then only the hits under a configured root, each with matching lines. */

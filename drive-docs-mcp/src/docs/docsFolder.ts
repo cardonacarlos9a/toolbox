@@ -1,6 +1,7 @@
 import { isFolder, type DriveApi, type DriveItem } from '../drive/types.js';
 import { ToolError } from './errors.js';
-import { isTextFile, joinPath, mimeForName, splitPath } from './paths.js';
+import { isTextFile, joinPath, mimeForName, splitPath, uploadMimeForName } from './paths.js';
+import { assertUploadSize, UPLOAD_CHUNK_BYTES, type UploadStart } from './uploads.js';
 
 const MAX_TEXT_BYTES = 1_000_000;
 const MAX_LIST_ENTRIES = 500;
@@ -128,6 +129,25 @@ export class DocsFolder {
     const targetParentId = await this.ensureFolders(toNames.slice(0, -1), listing);
     await this.drive.move(source.item.id, source.parentId, targetParentId, toNames.at(-1) as string);
     return { from: joinPath(fromNames), to: joinPath(toNames) };
+  }
+
+  /**
+   * Opens a resumable upload of a new file of any type. The path must not exist yet,
+   * so an upload never replaces a file; missing folders are created.
+   */
+  async startUpload(path: string, size: number, mimeType?: string): Promise<UploadStart> {
+    assertUploadSize(size);
+    const names = this.filePath(path);
+    const listing: Listing = new Map();
+    if (await this.locate(names, listing)) {
+      throw new ToolError(`${this.show(path)} already exists; trash it or upload under another name`);
+    }
+
+    const name = names.at(-1) as string;
+    const parentId = await this.ensureFolders(names.slice(0, -1), listing);
+    const mime = mimeType?.trim() || uploadMimeForName(name);
+    const uploadId = await this.drive.startUpload(parentId, name, mime, size);
+    return { path: joinPath(names), upload_id: uploadId, size, chunk_size: UPLOAD_CHUNK_BYTES, mime_type: mime };
   }
 
   /** Moves a file or folder to the Drive trash, where it can be restored for 30 days. */

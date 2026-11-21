@@ -38,5 +38,30 @@ const extensionOf = (name: string): string => name.split('.').pop()?.toLowerCase
 
 export const mimeForName = (name: string): string => MIME_BY_EXTENSION[extensionOf(name)] ?? 'text/plain';
 
+/** Types for uploads only; kept apart so these never count as editable text. */
+const UPLOAD_MIME_BY_EXTENSION: Record<string, string> = {
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  m4a: 'audio/mp4',
+  flac: 'audio/flac',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  pdf: 'application/pdf',
+  zip: 'application/zip',
+  srt: 'application/x-subrip',
+  ass: 'text/x-ssa',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
+};
+
+export const uploadMimeForName = (name: string): string =>
+  MIME_BY_EXTENSION[extensionOf(name)] ?? UPLOAD_MIME_BY_EXTENSION[extensionOf(name)] ?? 'application/octet-stream';
+
 export const isTextFile = (name: string, mimeType: string): boolean =>
   mimeType.startsWith('text/') || TEXT_MIMES.has(mimeType) || extensionOf(name) in MIME_BY_EXTENSION;

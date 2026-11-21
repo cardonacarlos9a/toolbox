@@ -65,13 +65,13 @@ describe('HTTP', () => {
 });
 
 describe('MCP over HTTP', () => {
-  it('lists the seven tools and names the roots in its instructions', async () => {
+  it('lists the nine tools and names the roots in its instructions', async () => {
     const client = await connect();
     assert.match(client.getInstructions() ?? '', /roots"\): xapiems, finance/);
     const { tools } = await client.listTools();
     assert.deepEqual(
       tools.map((t) => t.name).sort(),
-      ['edit_file', 'list_files', 'move_file', 'read_file', 'search_files', 'trash_file', 'write_file'],
+      ['edit_file', 'list_files', 'move_file', 'read_file', 'search_files', 'start_upload', 'trash_file', 'upload_chunk', 'write_file'],
     );
     await client.close();
   });
@@ -102,6 +102,29 @@ describe('MCP over HTTP', () => {
     const listed = textOf(await client.callTool({ name: 'list_files', arguments: { recursive: true } }));
     assert.match(listed, /xapiems\/journal\/new.md/);
     assert.match(listed, /finance\/plan.md/);
+    await client.close();
+  });
+
+  it('accepts a full-size upload piece in one request', async () => {
+    const client = await connect();
+    const data = Buffer.alloc(2 * 1024 * 1024 + 10, 7);
+    const start = JSON.parse(
+      textOf(await client.callTool({ name: 'start_upload', arguments: { path: 'xapiems/media/loop.mp4', size: data.length } })),
+    ) as { upload_id: string; chunk_size: number };
+
+    const send = (offset: number, piece: Buffer) =>
+      client.callTool({
+        name: 'upload_chunk',
+        arguments: { upload_id: start.upload_id, offset, total_size: data.length, base64Content: piece.toString('base64') },
+      });
+
+    const first = await send(0, data.subarray(0, start.chunk_size));
+    assert.equal(first.isError, undefined);
+    assert.match(textOf(first), /"next_offset": 2097152/);
+
+    const last = await send(start.chunk_size, data.subarray(start.chunk_size));
+    assert.match(textOf(last), /"done": true/);
+    assert.match(textOf(last), /drive\.google\.com\/file\/d\//);
     await client.close();
   });
 

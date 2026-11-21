@@ -1,4 +1,13 @@
-import { FOLDER_MIME, type DriveApi, type DriveItem } from '../src/drive/types.js';
+import { FOLDER_MIME, type DriveApi, type DriveItem, type UploadStep } from '../src/drive/types.js';
+
+interface PendingUpload {
+  parentId: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  chunks: Buffer[];
+  received: number;
+}
 
 interface Node extends DriveItem {
   content?: string;
@@ -8,6 +17,8 @@ interface Node extends DriveItem {
 /** In-memory Drive. Times advance one second per change so versions differ. */
 export class FakeDrive implements DriveApi {
   private readonly nodes = new Map<string, Node>();
+  private readonly uploads = new Map<string, PendingUpload>();
+  private readonly binaries = new Map<string, Buffer>();
   private nextId = 1;
   private clock = Date.parse('2026-01-01T00:00:00Z');
   readonly calls: string[] = [];
@@ -33,6 +44,10 @@ export class FakeDrive implements DriveApi {
 
   contentOf(id: string): string | undefined {
     return this.nodes.get(id)?.content;
+  }
+
+  bytesOf(id: string): Buffer | undefined {
+    return this.binaries.get(id);
   }
 
   isTrashed(id: string): boolean {
@@ -74,6 +89,30 @@ export class FakeDrive implements DriveApi {
   async createFolder(parentId: string, name: string): Promise<DriveItem> {
     this.calls.push(`mkdir ${name}`);
     return this.view(this.mustGet(this.addFolder(parentId, name)));
+  }
+
+  async startUpload(parentId: string, name: string, mimeType: string, size: number): Promise<string> {
+    this.calls.push(`upload ${name}`);
+    const id = `u${this.nextId++}`;
+    this.uploads.set(id, { parentId, name, mimeType, size, chunks: [], received: 0 });
+    return id;
+  }
+
+  /** Like Drive: a piece that does not start where the last one ended is not stored. */
+  async uploadChunk(uploadId: string, offset: number, bytes: Uint8Array, total: number): Promise<UploadStep> {
+    const upload = this.uploads.get(uploadId);
+    if (!upload || total !== upload.size) throw new Error(`Unknown upload: ${uploadId}`);
+    if (offset !== upload.received) return { done: false, received: upload.received };
+    upload.chunks.push(Buffer.from(bytes));
+    upload.received += bytes.length;
+    if (upload.received < upload.size) return { done: false, received: upload.received };
+
+    this.uploads.delete(uploadId);
+    const id = `b${this.nextId++}`;
+    const data = Buffer.concat(upload.chunks);
+    this.binaries.set(id, data);
+    this.nodes.set(id, { ...this.node(id, upload.name, upload.mimeType, [upload.parentId]), size: data.length });
+    return { done: true, item: this.view(this.mustGet(id)) };
   }
 
   async move(id: string, fromParentId: string, toParentId: string, newName: string): Promise<DriveItem> {

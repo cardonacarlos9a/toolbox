@@ -2,7 +2,7 @@
   "name": "drive-docs-mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "Remote MCP server that reads and edits text files in one Google Drive folder, in place.",
+  "description": "Remote MCP server that reads and edits text files in Google Drive folders, in place, and uploads files of any type.",
   "type": "module",
   "engines": {
     "node": ">=22"

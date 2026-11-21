@@ -1,12 +1,31 @@
 import { auth, drive, type drive_v3 } from '@googleapis/drive';
 import type { Config } from '../config.js';
-import { FOLDER_MIME, type DriveApi, type DriveItem } from './types.js';
+import { FOLDER_MIME, type DriveApi, type DriveItem, type UploadStep } from './types.js';
 
 const FIELDS = 'id, name, mimeType, parents, modifiedTime, size';
 const PAGE_SIZE = 1000;
 const SHARED = { supportsAllDrives: true } as const;
+const UPLOAD_ENDPOINT = 'https://www.googleapis.com/upload/drive/v3/files';
+/** Google answers 308 to a resumable-upload piece while more bytes are expected. */
+const RESUME_INCOMPLETE = 308;
 
 const quote = (value: string): string => `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+
+/**
+ * Only the upload id travels through the model; the URL is always rebuilt here,
+ * so a tool call can never point the server at another host.
+ */
+const sessionUrl = (uploadId: string): string =>
+  `${UPLOAD_ENDPOINT}?uploadType=resumable&supportsAllDrives=true&fields=${encodeURIComponent(FIELDS)}&upload_id=${encodeURIComponent(uploadId)}`;
+
+/** "bytes=0-524287" → 524288; no header means nothing was stored yet. */
+const receivedFrom = (range: string | null): number => {
+  const end = range?.match(/^bytes=0-(\d+)$/)?.[1];
+  return end === undefined ? 0 : Number(end) + 1;
+};
+
+const refused = async (what: string, res: Response): Promise<Error> =>
+  new Error(`Drive refused ${what} (${res.status}): ${(await res.text()).slice(0, 300)}`);
 
 function toItem(file: drive_v3.Schema$File): DriveItem {
   if (!file.id || !file.name || !file.mimeType) {
@@ -26,6 +45,12 @@ export function createGoogleDrive(google: Config['google']): DriveApi {
   const oauth = new auth.OAuth2(google.clientId, google.clientSecret);
   oauth.setCredentials({ refresh_token: google.refreshToken });
   const files = drive({ version: 'v3', auth: oauth }).files;
+
+  const accessToken = async (): Promise<string> => {
+    const { token } = await oauth.getAccessToken();
+    if (!token) throw new Error('Google did not return an access token; check GOOGLE_REFRESH_TOKEN');
+    return token;
+  };
 
   const list = async (q: string, limit = PAGE_SIZE): Promise<DriveItem[]> => {
     const items: DriveItem[] = [];
@@ -80,6 +105,35 @@ export function createGoogleDrive(google: Config['google']): DriveApi {
         ...SHARED,
       });
       return toItem(res.data);
+    },
+
+    async startUpload(parentId, name, mimeType, size) {
+      const res = await fetch(`${UPLOAD_ENDPOINT}?uploadType=resumable&supportsAllDrives=true&fields=${encodeURIComponent(FIELDS)}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${await accessToken()}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+          'X-Upload-Content-Type': mimeType,
+          'X-Upload-Content-Length': String(size),
+        },
+        body: JSON.stringify({ name, parents: [parentId] }),
+      });
+      if (!res.ok) throw await refused('the upload', res);
+      const uploadId = new URL(res.headers.get('location') ?? UPLOAD_ENDPOINT).searchParams.get('upload_id');
+      if (!uploadId) throw new Error('Drive did not return an upload id');
+      return uploadId;
+    },
+
+    // The session URL itself authorizes the upload, so no token is sent with the pieces.
+    async uploadChunk(uploadId, offset, bytes, total): Promise<UploadStep> {
+      const res = await fetch(sessionUrl(uploadId), {
+        method: 'PUT',
+        headers: { 'Content-Range': `bytes ${offset}-${offset + bytes.length - 1}/${total}` },
+        body: new Uint8Array(bytes), // a copy typed on a plain ArrayBuffer, as fetch's BodyInit wants
+      });
+      if (res.status === RESUME_INCOMPLETE) return { done: false, received: receivedFrom(res.headers.get('range')) };
+      if (!res.ok) throw await refused('the upload piece', res);
+      return { done: true, item: toItem((await res.json()) as drive_v3.Schema$File) };
     },
 
     async move(id, fromParentId, toParentId, newName) {

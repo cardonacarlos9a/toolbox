@@ -1,6 +1,6 @@
 # drive-docs-mcp
 
-A remote MCP server that lets Claude read and edit plain-text files (Markdown, text, JSON, CSV, YAML) inside **chosen Google Drive folders** ("roots"), from any Claude app (web, phone, desktop), with no computer on.
+A remote MCP server that lets Claude read and edit plain-text files (Markdown, text, JSON, CSV, YAML) inside **chosen Google Drive folders** ("roots"), and upload new files of any type (video, audio, images…) there, from any Claude app (web, phone, desktop), with no computer on.
 
 Edits change files **in place**: same Drive id, revision history kept, and Google Drive for desktop syncs them as usual. The Google Drive connector in the directory cannot do this; it can only create new files.
 
@@ -15,10 +15,21 @@ Edits change files **in place**: same Drive id, revision history kept, and Googl
 | `move_file` | Move or rename a file or folder within one root |
 | `trash_file` | Move to the Drive trash (restorable for 30 days) |
 | `search_files` | Find files by name or content, with matching lines |
+| `start_upload` | Open an upload of a new file of any type; returns `upload_id` and `chunk_size` |
+| `upload_chunk` | Send one piece (base64) of that upload, in order; the last piece returns the file's id and link |
 
 - Every path starts with a root name (`xapiems/backlog/README.md`). `..` is refused, and every path is resolved by walking down from its root, so nothing outside the roots is reachable. Search only returns files under a root.
 - `write_file` and `edit_file` take an optional `expected_version` (from `read_file`) and refuse the change if the file changed since.
 - Two items with the same name in one folder are reported, never guessed.
+
+## Uploads
+
+- Drive's resumable upload, in 2 MiB pieces: Claude's connector calls carry about 4.2 MB each, so a 6 MB video takes 3 calls.
+- Pieces go in order; every piece but the last is exactly `chunk_size` (a multiple of 256 KiB). A piece that doesn't fit is refused before anything is sent.
+- `upload_chunk` answers `next_offset` until the end; if it is smaller than expected, resend from there.
+- An upload never replaces a file: the path must not exist. Uploaded files are not editable text (`read_file` refuses them).
+- Only the `upload_id` passes through Claude; the server rebuilds Google's upload URL itself, so a call can't point it at another host.
+- Limits: 4 MB per MCP request, 1 MB per text file, 5 GB per upload.
 
 ## How it works
 
@@ -98,7 +109,7 @@ On Render, append `,name=folderId` to `DRIVE_ROOTS` and save; the service restar
 
 ## Current deployment
 
-- Service `drive-docs-mcp` on Render, roots `xapiems` and `investments`.
+- Service `drive-docs-mcp` on Render, roots `xapiems` and `investments`. Add `dreamy-tunes=1Xhm8MubODdrbwhuJnEHtBb2AnXvluS7g` for the YouTube channel folder.
 - The refresh token belongs to **cardonacarlos9a**. New files the connector creates are owned by that account and use its 15 GB; edits keep each file's owner.
 - To move new files to **cardonacarlosd** (the 5 TB plan): get a new refresh token in the OAuth Playground signed in as cardonacarlosd (same client), replace `GOOGLE_REFRESH_TOKEN` on Render, then remove `toolbox` at myaccount.google.com/permissions on cardonacarlos9a.
 

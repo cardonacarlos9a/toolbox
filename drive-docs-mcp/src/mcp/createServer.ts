@@ -22,11 +22,12 @@ const instructions = (roots: string[]): string =>
     'Every path starts with a root name, e.g. "xapiems/README.md"; list_files with an empty path shows the roots.',
     'Edits change the file in place: it keeps its Drive id and history.',
     'Prefer edit_file for small changes; use write_file to create a file or replace all of it.',
+    'To add a file of any type (video, audio, image, PDF…), call start_upload, then upload_chunk for each piece in order.',
   ].join(' ');
 
 /** Builds one MCP server over the configured roots. Cheap enough to build per request. */
 export function createMcpServer(library: DocsLibrary, log: Logger): McpServer {
-  const server = new McpServer({ name: 'drive-docs', version: '0.2.0' }, { instructions: instructions(library.rootNames) });
+  const server = new McpServer({ name: 'drive-docs', version: '0.3.0' }, { instructions: instructions(library.rootNames) });
 
   const run = async (tool: string, target: string, action: () => Promise<CallToolResult>): Promise<CallToolResult> => {
     log.info(`${tool} ${target}`);
@@ -130,6 +131,42 @@ export function createMcpServer(library: DocsLibrary, log: Logger): McpServer {
       annotations: { destructiveHint: true },
     },
     ({ path }) => run('trash_file', path, async () => json(await library.trash(path))),
+  );
+
+  server.registerTool(
+    'start_upload',
+    {
+      title: 'Start upload',
+      description:
+        'Starts uploading a new file of any type (video, audio, image, PDF…) in pieces. The path must not exist yet; missing folders are created. Returns upload_id and chunk_size; then send the bytes with upload_chunk.',
+      inputSchema: {
+        path: z.string().describe(PATH_HELP),
+        size: z.number().int().min(1).describe('The whole file size in bytes.'),
+        mime_type: z.string().optional().describe('Optional. Guessed from the extension when left out (e.g. .mp4 → video/mp4).'),
+      },
+      annotations: { destructiveHint: false },
+    },
+    ({ path, size, mime_type }) => run('start_upload', path, async () => json(await library.startUpload(path, size, mime_type))),
+  );
+
+  server.registerTool(
+    'upload_chunk',
+    {
+      title: 'Upload a piece',
+      description:
+        'Sends one piece of an upload started with start_upload. Send pieces in order from offset 0; each piece except the last must be exactly chunk_size bytes. Returns next_offset until the file is complete, then its id and URL. If next_offset is smaller than expected, resend from there.',
+      inputSchema: {
+        upload_id: z.string().describe('The upload_id returned by start_upload.'),
+        offset: z.number().int().min(0).describe('Byte position of this piece in the file.'),
+        total_size: z.number().int().min(1).describe('The whole file size in bytes, as given to start_upload.'),
+        base64Content: z.string().describe("The piece's bytes, base64 encoded."),
+      },
+      annotations: { destructiveHint: false },
+    },
+    ({ upload_id, offset, total_size, base64Content }) =>
+      run('upload_chunk', `@${offset}/${total_size}`, async () =>
+        json(await library.uploadChunk(upload_id, offset, total_size, base64Content)),
+      ),
   );
 
   server.registerTool(
