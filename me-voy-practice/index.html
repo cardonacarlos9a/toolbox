@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Me Voy · entradas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;800&family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+/* VOICE: una profe cálida y precisa; ensayo concentrado, sin adornos
+   IDEA: la partitura de ensayo con las marcas a lápiz de la profe, y su boleta de calificaciones
+   PICTURE: el pulso vivo: anillo de cuenta regresiva y seis corcheas que se encienden
+   COLOUR and TYPE: rosa mexicano dominante, tinta ciruela, acento limón; Lilita One + Figtree
+   LAYOUT: cabecera con modos, banda fija del pulso, evaluación, claves, mapa, plan */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#160a11);--ink:light-dark(#24101b,#f8eaf1);--mute:light-dark(#6e5463,#c9abba);--soft:light-dark(#fff0f6,#2a1220);--line:light-dark(#f0d5e2,#3d2232);--rosa:#d6006f;--rosaink:light-dark(#b0005b,#ff5aa8);--lima:#c9e600;--plum:#2a0c1d;--ok:light-dark(#2f7d1f,#9fdc6a);--bad:light-dark(#c2185b,#ff7aa8);--meh:light-dark(#8a5a00,#ffc65c)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Figtree,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.big{font-family:"Lilita One",Figtree,sans-serif;font-weight:400;letter-spacing:.01em}
+h1{font-size:clamp(34px,7vw,52px);line-height:1.05;margin:0 0 6px;text-wrap:balance}
+h2{font-size:clamp(26px,4.5vw,34px);line-height:1.1;margin:0 0 14px;color:var(--rosaink)}
+h3{font-size:21px;margin:26px 0 10px;color:var(--rosaink)}
+[hidden]{display:none!important}
+.band{padding:clamp(22px,4vw,48px) max(5vw,16px)}
+.wrap{max-width:1100px;margin:0 auto}
+.head{background:var(--rosa);color:#fff}
+.head p{margin:0;max-width:62ch}
+.meta{opacity:.92;font-size:15px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tab{font:700 15px Figtree,sans-serif;min-height:44px;padding:0 16px;border-radius:999px;border:2px solid rgba(255,255,255,.7);background:transparent;color:#fff;cursor:pointer}
+.tab[aria-pressed=true]{background:#fff;color:var(--rosa);border-color:#fff}
+.load{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+.btn,select{font:600 16px Figtree,sans-serif;min-height:44px;border-radius:999px;border:2px solid transparent;padding:0 18px;cursor:pointer}
+.btn:focus-visible,select:focus-visible,.tab:focus-visible,tr[tabindex]:focus-visible,input:focus-visible{outline:3px solid var(--lima);outline-offset:2px}
+.pick{background:var(--lima);color:var(--plum);display:inline-flex;align-items:center}
+.pick2{background:var(--rosa);color:#fff;display:inline-flex;align-items:center}
+.pick input,.pick2 input{position:absolute;opacity:0;width:1px;height:1px}
+.fname{font-size:14px;opacity:.95}
+.opts{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:14px;font-size:15px}
+.opts label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.opts select{background:#fff;color:var(--plum);padding:0 12px;min-height:40px}
+.opts input[type=checkbox]{width:20px;height:20px;accent-color:var(--lima)}
+.opts input[type=range]{width:160px;accent-color:var(--lima)}
+.now{position:sticky;top:0;z-index:5;background:var(--plum);color:#fff;padding:12px max(5vw,16px) 10px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.row{display:grid;grid-template-columns:92px minmax(0,1fr) 56px;gap:14px;align-items:center;max-width:1100px;margin:0 auto}
+.ring{position:relative;width:92px;height:92px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .c{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;line-height:1}
+.ring.go{animation:pop .35s ease-out}.ring.go .c{color:var(--lima)}
+@keyframes pop{from{transform:scale(1.15)}to{transform:scale(1)}}
+.state{font-size:26px;line-height:1.05}
+.state.go{color:var(--lima)}
+.info small{display:block;font-size:14px;opacity:.85}
+.next{font-size:15px;margin-top:2px}
+.next b{color:var(--lima);font-weight:800}
+.play{width:56px;height:56px;border-radius:50%;background:var(--lima);color:var(--plum);border:0;display:grid;place-items:center;cursor:pointer}
+.play svg{width:26px;height:26px}
+.dots{display:flex;gap:10px;align-items:center;max-width:1100px;margin:10px auto 0}
+.d{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.18)}
+.d.s{width:24px;height:24px}
+.d.on{background:var(--lima)}
+.bar{margin-left:auto;font-size:15px;white-space:nowrap;opacity:.9}
+.seek{display:flex;gap:10px;align-items:center;max-width:1100px;margin:8px auto 0;font-size:13px;font-variant-numeric:tabular-nums}
+.seek input{flex:1;accent-color:var(--rosa);height:28px}
+.ghost{min-height:36px;padding:0 12px;background:rgba(255,255,255,.12);color:#fff}
+.msg{max-width:1100px;margin:6px auto 0;font-size:14px;color:var(--lima)}
+.keys ul{list-style:none;padding:0;margin:0;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.keys li{padding:14px 16px;background:var(--soft);border-radius:14px}
+.keys li b{display:block;font-size:17px;color:var(--rosaink)}
+.steps{padding-left:1.3em;max-width:70ch;margin:0 0 10px}.steps li{margin-bottom:6px}
+.prog{height:10px;border-radius:99px;background:var(--line);overflow:hidden;max-width:520px;margin-top:16px}
+.prog div{height:100%;width:0;background:var(--rosa);transition:width .2s}
+.score{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;margin-top:20px;padding:18px;border-radius:18px;background:var(--plum);color:#fff}
+.score .num{font-size:clamp(56px,12vw,84px);line-height:.9;color:var(--lima)}
+.score .num small{font-size:22px;color:#fff;opacity:.7}
+.score b{font-size:19px}.score p{margin:4px 0 0;opacity:.9}
+.meters{display:grid;gap:12px;margin-top:18px}
+.m{display:grid;grid-template-columns:150px minmax(0,1fr) 64px;gap:10px;align-items:center}
+.track{height:14px;border-radius:99px;background:var(--line);overflow:hidden}.track i{display:block;height:100%;background:var(--rosa);border-radius:99px}
+.m b{text-align:right;font-variant-numeric:tabular-nums}.m small{grid-column:2/4;color:var(--mute);margin-top:-6px;font-size:13px}
+.tend{padding-left:1.2em;margin:16px 0 0;max-width:72ch}.tend li{margin-bottom:6px}
+.v-ok{color:var(--ok);font-weight:700}.v-bad{color:var(--bad);font-weight:700}.v-meh{color:var(--meh);font-weight:700}.v-na{color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font-size:13px;color:var(--mute);font-weight:600}
+td.r,th.r{text-align:right}
+tr.sec th{padding-top:22px;font:20px "Lilita One",sans-serif;color:var(--rosaink);border-bottom:2px solid var(--rosa)}
+tbody tr[tabindex]{cursor:pointer}
+tbody tr[tabindex]:hover{background:var(--soft)}
+tr.on{background:var(--soft);box-shadow:inset 4px 0 0 var(--rosa)}
+.t{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tag{display:inline-block;font-size:12px;font-weight:800;background:var(--rosa);color:#fff;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+.tip{color:var(--mute)}
+.plan ol{padding-left:1.2em;margin:0;max-width:70ch}.plan li{margin-bottom:8px}
+.note{font-size:14px;color:var(--mute);max-width:70ch}
+.hist{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.hist span{background:var(--soft);border-radius:99px;padding:4px 12px;font-size:14px;font-variant-numeric:tabular-nums}
+pre,.scroll{overflow-x:auto}code{overflow-wrap:anywhere}html{scroll-padding-top:200px}
+@media(max-width:600px){table{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:7.2em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:6.8em;margin-inline-start:-7.2em;white-space:normal;color:var(--mute);font-size:13px}.stack td:empty{display:none}.stack tr.sec{display:block}
+.row{grid-template-columns:74px minmax(0,1fr) 52px;gap:10px}.ring{width:74px;height:74px}.ring .c{font-size:24px}.state{font-size:22px}.play{width:52px;height:52px}
+.m{grid-template-columns:minmax(0,1fr) 56px}.m .track{grid-column:1/3;grid-row:2}.m small{grid-column:1/3;grid-row:3;margin-top:0}.score{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.ring.go{animation:none}.prog div{transition:none}}
+</style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head>
+<body>
+<header class="band head"><div class="wrap">
+  <h1>Me Voy: tus entradas, compás por compás</h1>
+  <p class="meta">Julieta Venegas · Re mayor · compás de 6/8 · unos 72 pulsos por minuto · presentación: 9 de diciembre</p>
+  <div class="tabs"><button class="tab" id="tabA" aria-pressed="true">Ensayo de entradas</button><button class="tab" id="tabK" aria-pressed="false">Karaoke y evaluación</button></div>
+  <div id="panelA">
+    <div class="load">
+      <label class="btn pick">Cargar mi MP3<input id="file" type="file" accept="audio/*,.mp3"></label>
+      <span class="fname" id="fname">Tu archivo se queda en tu dispositivo; nada se sube.</span>
+    </div>
+    <div class="opts">
+      <label>Velocidad <select id="rate"><option value="1">100 %</option><option value="0.85">85 %</option><option value="0.75" selected>75 %</option><option value="0.6">60 %</option></select></label>
+      <label>Clic <select id="click"><option value="pulse" selected>pulsos 1 y 4</option><option value="eighths">las 6 corcheas</option><option value="off">apagado</option></select></label>
+      <label><input type="checkbox" id="ding" checked> Campanita en cada entrada</label>
+      <label><input type="checkbox" id="loop"> Repetir la entrada elegida</label>
+    </div>
+  </div>
+  <div id="panelK" hidden>
+    <div class="load">
+      <label class="btn pick">Cargar pista karaoke<input id="kfile" type="file" accept="audio/*,.mp3"></label>
+      <span class="fname" id="kname">Es el archivo «MeVoy_pista_karaoke.mp3» que te mandé.</span>
+    </div>
+    <div class="opts">
+      <label>Voz guía de Julieta <input id="guide" type="range" min="0" max="100" value="25" aria-label="Volumen de la voz guía"> <span id="guideV">25 %</span></label>
+    </div>
+    <div class="load"><button class="btn pick" id="micBtn">Activar micrófono</button><label class="opts" style="margin:0"><input type="checkbox" id="recMe" disabled> Grabarme al cantar</label></div>
+    <p class="fname" id="micState" style="margin-top:8px">Si el navegador lo permite, te grabo aquí mismo y te califico al terminar.</p>
+  </div>
+</div></header>
+
+<div class="now" aria-live="off">
+  <div class="row">
+    <div class="ring" id="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="9"/><circle id="arc" cx="50" cy="50" r="44" fill="none" stroke="#c9e600" stroke-width="9" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="276.5"/></svg><div class="c big" id="cnt"></div></div>
+    <div class="info">
+      <small id="sec">Introducción</small>
+      <div class="state big" id="state">Carga tu MP3 para empezar</div>
+      <div class="next" id="next"></div>
+    </div>
+    <button class="play" id="play" aria-label="Reproducir"><svg id="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+  </div>
+  <div class="dots" aria-hidden="true"><span class="d s"></span><span class="d"></span><span class="d"></span><span class="d s"></span><span class="d"></span><span class="d"></span><span class="bar" id="bar">Compás –</span></div>
+  <div class="seek" id="seekRow"><button class="btn ghost" id="back">−2 compases</button><span id="cur">0:00</span><input id="pos" type="range" min="0" max="186" step="0.1" value="0" aria-label="Posición"><span id="dur">3:06</span></div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<main>
+<section class="band" id="evalSec" hidden><div class="wrap">
+  <h2>Evalúa tu ensayo</h2>
+  <ol class="steps">
+    <li>Abre esta página en un aparato (la compu, por ejemplo), carga la pista karaoke y deja el sonido <b>por parlante</b>, a volumen medio.</li>
+    <li>En otro aparato, tu celular, abre la grabadora de voz y empieza a grabar <b>antes</b> de tocar el botón de cantar.</li>
+    <li>Toca el botón: suenan 4 pitidos (con ellos sincronizo tu grabación) y arranca la pista. Canta la canción completa, cerca del celular.</li>
+    <li>Detén la grabación y súbela aquí. El análisis se hace en tu dispositivo; nada se sube a internet.</li>
+  </ol>
+  <p class="note">Si activaste el micrófono arriba, no necesitas estos pasos: al terminar de cantar (o al detener) te califico solo. Si el navegador bloqueó el micrófono, sigue los pasos con dos aparatos; las notas de voz del celular (.m4a) o un video funcionan.</p>
+  <div class="load"><label class="btn pick2">Subir mi grabación<input id="rfile" type="file" accept="audio/*,video/*"></label><span id="rname" class="note"></span></div>
+  <div class="prog" id="prog" hidden><div id="progBar"></div></div><p class="note" id="progTxt"></p>
+  <div id="res"></div>
+  <div id="histBox" hidden><h3>Tus intentos</h3><div class="hist" id="hist"></div></div>
+</div></section>
+
+<section class="band keys"><div class="wrap">
+  <h2>Las claves de la profe</h2>
+  <ul>
+    <li><b>Cuenta en 6, siente en 2</b>Cada compás es 1-2-3-4-5-6, con dos pulsos fuertes: el 1 y el 4. Es un balanceo, como una mecedora. El clic de arriba marca justo esos dos pulsos.</li>
+    <li><b>Las estrofas entran en el 4</b>La intro y el interludio son la misma música. En el compás 8 (y en el 49) la banda sostiene un acorde largo: cuenta 1-2-3 sobre él y entra en el 4, con una sílaba cortita justo antes.</li>
+    <li><b>Cada «Qué…» del coro es una anacrusa</b>Sostén la nota anterior hasta el 4, respira en el 5 y entra en el 6. La sílaba fuerte cae en el 1 del compás siguiente.</li>
+    <li><b>Cada «Me…» del coro, justo después del 4</b>Respira en el 3 y entra un pelín después del segundo pulso.</li>
+    <li><b>De la estrofa al pre-coro</b>Igual que el coro: sostén la última nota hasta el 4, respira en el 5 y el «No…» entra en el 6.</li>
+    <li><b>El final tiene trampa</b>En la última vuelta, la nota antes de «me voy» se estira un compás entero. El último «voy» cae en el compás 108, no en el 107, y se sostiene unos 2 compases.</li>
+  </ul>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <h2>Mapa completo de entradas</h2>
+  <p class="note" style="margin-top:-6px">En el modo de ensayo, toca una fila para escuchar desde 2 compases antes. La letra no va aquí: anota estas marcas en tu hoja.</p>
+  <table class="stack"><thead><tr><th>Tiempo</th><th>Compás</th><th>Frase</th><th>Cuándo entras</th><th>Consejo</th></tr></thead><tbody id="map"></tbody></table>
+</div></section>
+
+<section class="band plan" style="background:var(--soft)"><div class="wrap">
+  <h2>Plan hasta el 9 de diciembre</h2>
+  <ol>
+    <li><b>24–27 nov:</b> solo entradas. Activa «Repetir la entrada elegida» al 75 % con clic y trabaja primero las marcadas como clave.</li>
+    <li><b>28 nov–2 dic:</b> canción completa al 85 % y luego al 100 %, cantando encima de Julieta. Desde el 1 de diciembre, apaga el clic. Una grabación de karaoke evaluada cada dos días.</li>
+    <li><b>3–6 dic:</b> karaoke con la voz guía en 0 % y la pista que usarás en la presentación. Una evaluación diaria; apunta a subir tu nota.</li>
+    <li><b>7–8 dic:</b> dos ensayos completos al día como máximo, de pie y como si fuera el día. Cuida la voz: agua, nada de gritar.</li>
+    <li><b>9 dic:</b> calienta 15 minutos, respira hondo antes del compás 8 y a disfrutar.</li>
+  </ol>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <p class="note">El mapa se midió sobre tu MP3 (3:06): separé la voz de los instrumentos y ubiqué cada entrada en su compás. La pista karaoke sale de ese mismo análisis. La evaluación es una guía de práctica: compara tu voz con la de Julieta por el tono (sin importar la octava) y por el momento en que entras; no es un juez perfecto. En iPhone, si no oyes el clic, quita el modo silencio.</p>
+</div></section>
+</main>
+<audio id="au" preload="auto"></audio>
+<script>
+{
+const B=[0.23, 1.09, 1.93, 2.75, 3.59, 4.42, 5.25, 6.08, 6.92, 7.76, 8.58, 9.42, 10.24, 11.09, 11.94, 12.89, 13.86, 14.71, 15.53, 16.36, 17.18, 18.03, 18.87, 19.68, 20.53, 21.35, 22.19, 23.02, 23.84, 24.67, 25.51, 26.35, 27.19, 28.01, 28.84, 29.69, 30.52, 31.36, 32.19, 33.02, 33.87, 34.69, 35.51, 36.36, 37.2, 38.02, 38.87, 39.69, 40.39, 41.1, 41.9, 42.74, 43.57, 44.41, 45.24, 46.07, 46.9, 47.75, 48.58, 49.41, 50.22, 51.07, 51.88, 52.74, 53.58, 54.43, 55.25, 56.08, 56.91, 57.75, 58.57, 59.42, 60.23, 61.08, 61.9, 62.75, 63.58, 64.41, 65.22, 66.07, 66.9, 67.76, 68.57, 69.42, 70.24, 71.09, 71.91, 72.74, 73.57, 74.41, 75.24, 76.09, 76.92, 77.75, 78.58, 79.42, 80.26, 81.11, 81.91, 82.76, 83.59, 84.43, 85.25, 86.09, 86.92, 87.76, 88.58, 89.41, 90.26, 91.09, 91.92, 92.75, 93.58, 94.41, 95.25, 96.08, 96.91, 97.77, 98.59, 99.43, 100.25, 101.09, 101.91, 102.75, 103.6, 104.41, 105.26, 106.09, 106.92, 107.75, 108.59, 109.42, 110.25, 111.1, 111.91, 112.74, 113.57, 114.42, 115.24, 116.08, 116.9, 117.76, 118.57, 119.41, 120.22, 121.07, 121.89, 122.74, 123.58, 124.42, 125.25, 126.08, 126.91, 127.76, 128.58, 129.42, 130.24, 131.08, 131.9, 132.74, 133.57, 134.41, 135.23, 136.08, 136.9, 137.75, 138.59, 139.41, 140.25, 141.08, 141.91, 142.76, 143.58, 144.43, 145.24, 146.09, 146.9, 147.75, 148.56, 149.41, 150.23, 151.08, 151.92, 152.74, 153.58, 154.41, 155.24, 156.08, 156.91, 157.74, 158.58, 159.42, 160.24, 161.09, 161.89, 162.74, 163.56, 164.42, 165.24, 166.13, 166.96, 167.78, 168.61, 169.42, 170.38, 171.28, 172.13, 172.98, 173.79, 174.67, 175.53, 176.41, 177.24, 178.05, 178.83, 179.66, 180.49, 181.32, 182.15, 182.98, 183.81, 184.64, 185.47];
+const E=[{"s": "Estrofa 1", "c": "¿Por…", "b": 8, "t": 12.62, "p": "Sílaba cortita justo antes del 4", "k": 1, "tip": "La música se queda en un acorde largo en el 1. Cuenta 1-2-3 encima de ese acorde y entra en el 4."}, {"s": "Estrofa 1", "c": "lo…", "b": 11, "t": 17.61, "p": "Entre el 2 y el 3", "k": 0, "tip": "Va pegada a la frase anterior: aire corto."}, {"s": "Estrofa 1", "c": "¿Por…", "b": 12, "t": 19.68, "p": "En el 4", "k": 0, "tip": "Sin pausa: roba el aire rápido al final de la frase anterior."}, {"s": "Estrofa 1", "c": "Porque…", "b": 16, "t": 26.23, "p": "Justo antes del 4", "k": 0, "tip": "Tienes casi un compás de silencio: respira con calma."}, {"s": "Estrofa 1", "c": "solo…", "b": 19, "t": 30.91, "p": "Entre el 2 y el 3", "k": 0, "tip": ""}, {"s": "Estrofa 1", "c": "que…", "b": 21, "t": 34.35, "p": "En el 3", "k": 0, "tip": "Esta frase es larga: toma bastante aire."}, {"s": "Pre-coro 1", "c": "No…", "b": 24, "t": 40.16, "p": "En el 6 → la fuerte cae en el 1", "k": 1, "tip": "Sostén la última nota de la estrofa hasta el 4, respira en el 5 y entra en el 6."}, {"s": "Pre-coro 1", "c": "porque…", "b": 28, "t": 45.74, "p": "En el 3", "k": 0, "tip": ""}, {"s": "Pre-coro 1", "c": "pero…", "b": 31, "t": 50.45, "p": "En el 2", "k": 0, "tip": "La frase termina con «me voy» justo en el 1 del compás 33."}, {"s": "Coro 1", "c": "Qué…", "b": 33, "t": 54.98, "p": "En el 6 → la fuerte cae en el 1", "k": 1, "tip": "Sostén «voy» hasta el 4, respira en el 5 y entra en el 6."}, {"s": "Coro 1", "c": "Me…", "b": 35, "t": 57.88, "p": "Justo después del 4", "k": 0, "tip": "Respira en el 3."}, {"s": "Coro 1", "c": "Qué…", "b": 37, "t": 61.63, "p": "En el 6 → la fuerte cae en el 1", "k": 0, "tip": "Igual que la primera: respira en el 5."}, {"s": "Coro 1", "c": "Me…", "b": 39, "t": 64.44, "p": "Justo después del 4", "k": 0, "tip": "La última nota del coro se sostiene casi 2 compases."}, {"s": "Estrofa 2", "c": "Porque…", "b": 49, "t": 80.96, "p": "Sílaba cortita justo antes del 4", "k": 1, "tip": "El interludio es la misma música de la intro: acorde largo en el 1, cuenta 1-2-3 y entra en el 4."}, {"s": "Estrofa 2", "c": "alguien…", "b": 52, "t": 85.98, "p": "Justo antes del 4", "k": 0, "tip": "Esta frase dura un compás más que en la estrofa 1: no te adelantes."}, {"s": "Estrofa 2", "c": "3ª frase", "b": 54, "t": 89.41, "p": "En el 4", "k": 0, "tip": ""}, {"s": "Estrofa 2", "c": "Yo…", "b": 58, "t": 95.83, "p": "En el 3", "k": 0, "tip": ""}, {"s": "Estrofa 2", "c": "5ª frase", "b": 61, "t": 100.74, "p": "En el 3", "k": 0, "tip": ""}, {"s": "Estrofa 2", "c": "pero…", "b": 62, "t": 103.21, "p": "En el 6", "k": 0, "tip": "Al final de esta frase, sostén la última nota hasta el 4 del compás 66."}, {"s": "Pre-coro 2", "c": "No…", "b": 66, "t": 110.03, "p": "En el 6 → la fuerte cae en el 1", "k": 1, "tip": "Igual que en la 1ª vuelta: sostén hasta el 4, respira en el 5, entra en el 6."}, {"s": "Pre-coro 2", "c": "porque…", "b": 70, "t": 115.73, "p": "En el 3", "k": 0, "tip": ""}, {"s": "Pre-coro 2", "c": "pero…", "b": 73, "t": 120.75, "p": "En el 3", "k": 0, "tip": ""}, {"s": "Coro 2", "c": "Qué…", "b": 75, "t": 124.97, "p": "En el 6 → la fuerte cae en el 1", "k": 0, "tip": "Respira en el 5."}, {"s": "Coro 2", "c": "Me…", "b": 77, "t": 127.97, "p": "Justo después del 4", "k": 0, "tip": "Respira en el 3."}, {"s": "Coro 2", "c": "Qué…", "b": 79, "t": 131.63, "p": "En el 6 → la fuerte cae en el 1", "k": 0, "tip": ""}, {"s": "Coro 2", "c": "Me…", "b": 81, "t": 134.46, "p": "Justo después del 4", "k": 0, "tip": ""}, {"s": "Vocalizaciones", "c": "1ª tanda", "b": 83, "t": 136.9, "p": "En el 1", "k": 0, "tip": "Salen pegadas a la última nota del coro, sin pausa."}, {"s": "Vocalizaciones", "c": "2ª tanda", "b": 87, "t": 143.58, "p": "En el 1", "k": 0, "tip": ""}, {"s": "Coro final", "c": "Me voy", "b": 90, "t": 149.4, "p": "En el 4, suave → «voy» cae en el 1", "k": 1, "tip": "El compás 90 empieza sin voz (~1 segundo). Cuenta 1-2-3 y entra en el 4 creciendo."}, {"s": "Coro final", "c": "Qué…", "b": 91, "t": 151.64, "p": "En el 6 → la fuerte cae en el 1", "k": 0, "tip": ""}, {"s": "Coro final", "c": "Me…", "b": 93, "t": 154.44, "p": "Justo después del 4", "k": 0, "tip": ""}, {"s": "Coro final", "c": "Qué…", "b": 95, "t": 158.3, "p": "En el 6 → la fuerte cae en el 1", "k": 0, "tip": ""}, {"s": "Coro final", "c": "Me…", "b": 97, "t": 161.2, "p": "Justo después del 4", "k": 0, "tip": ""}, {"s": "Coro final", "c": "Qué…", "b": 99, "t": 164.97, "p": "En el 6 → la fuerte cae en el 1", "k": 0, "tip": ""}, {"s": "Coro final", "c": "Me…", "b": 101, "t": 167.91, "p": "Justo después del 4", "k": 0, "tip": ""}, {"s": "Coro final", "c": "Qué…", "b": 103, "t": 171.75, "p": "En el 6 → la fuerte cae en el 1", "k": 0, "tip": "Última vuelta: guarda aire para el final."}, {"s": "Coro final", "c": "Me…", "b": 105, "t": 174.85, "p": "Justo después del 4", "k": 0, "tip": ""}, {"s": "Coro final", "c": "me voy (final)", "b": 107, "t": 178.25, "p": "Después del 4 del c107 → «voy» en el 1 del c108", "k": 1, "tip": "¡Trampa final! La nota anterior se estira un compás entero. El último «voy» cae un compás después de lo normal y se sostiene ~2 compases."}];
+const S=[[0,'Introducción','En el compás 8 la música sostiene un acorde: ahí entras.'],[12.5,'Estrofa 1',''],[40,'Pre-coro 1',''],[53.5,'Coro 1',''],[68.6,'Interludio','Es la música de la intro: en el compás 49 vuelve el acorde largo.'],[80.8,'Estrofa 2',''],[109.9,'Pre-coro 2',''],[123.5,'Coro 2',''],[136.85,'Vocalizaciones',''],[148.5,'Coro final','Compás 90: arranca sin voz; cuenta 1-2-3 y entra en el 4.'],[182.1,'Final instrumental','Sostén la sonrisa hasta el último acorde.']];
+const P=0.836;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=t=>{t=Math.max(0,t);const m=Math.floor(t/60),s=Math.floor(t%60);return m+':'+String(s).padStart(2,'0')};
+const au=$('au');let ctx=null,url=null,loaded=false,loopI=-1,lastN=-2,dragging=false,n8=0,ne=0,mode='A';
+const K={buf:null,src:null,start:0,playing:false,gV:null,ref:null};
+const T8=[];for(let i=0;i<B.length-1;i++)for(let k=0;k<3;k++)T8.push([B[i]+(B[i+1]-B[i])*k/3,k?0:(i%2?1:2)]);
+let sec='';
+$('map').innerHTML=E.map((e,i)=>{let h='';if(e.s!==sec){sec=e.s;h=`<tr class="sec"><th colspan="5">${esc(sec)}</th></tr>`}
+return h+`<tr tabindex="0" data-i="${i}"><td class="t">${fmt(e.t)}</td><td class="t">c${e.b}</td><td>“${esc(e.c)}”${e.k?'<span class="tag">clave</span>':''}</td><td>${esc(e.p)}</td><td class="tip">${esc(e.tip)}</td></tr>`}).join('');
+const rows=[...document.querySelectorAll('#map tr[data-i]')];
+function bi(t){if(t<B[0])return -1;let lo=0,hi=B.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(B[m]<=t)lo=m;else hi=m-1}return lo}
+function pos(t){const i=bi(t);if(i<0)return{bar:0,e:0};const nx=i+1<B.length?B[i+1]:B[i]+.83;const f=Math.min(.999,(t-B[i])/(nx-B[i]));return{bar:(i>>1)+1,e:(i%2)*3+Math.floor(f*3)+1}}
+function secAt(t){let s=S[0];for(const x of S)if(x[0]<=t)s=x;return s}
+function msg(s){$('msg').textContent=s;clearTimeout(msg.h);if(s)msg.h=setTimeout(()=>$('msg').textContent='',5000)}
+function ensureCtx(){if(!ctx){try{ctx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ctx&&ctx.state==='suspended')ctx.resume();return ctx}
+function tone(when,f,v,d){const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=f;g.gain.setValueAtTime(.0001,when);g.gain.exponentialRampToValueAtTime(v,when+.004);g.gain.setValueAtTime(v,when+d*.6);g.gain.exponentialRampToValueAtTime(.0001,when+d);o.connect(g).connect(ctx.destination);o.start(when);o.stop(when+d+.03)}
+function resync(){const t=au.currentTime;n8=T8.findIndex(x=>x[0]>=t-.01);if(n8<0)n8=T8.length;ne=E.findIndex(e=>e.t>=t-.01);if(ne<0)ne=E.length}
+function tick(){if(mode!=='A'||!ctx||au.paused)return;const t=au.currentTime,r=au.playbackRate,now=ctx.currentTime,h=t+.12*r;
+ if($('loop').checked){if(loopI<0)loopI=Math.max(0,E.findIndex(e=>e.t>t));const L=E[loopI],a=Math.max(0,L.t-3.4),z=L.t+2.6;if(t>z||t<a-1){au.currentTime=a;return}}
+ const md=$('click').value;
+ while(n8<T8.length&&T8[n8][0]<h){const[x,l]=T8[n8];if(x>=t-.02&&md!=='off'&&(l||md==='eighths'))tone(now+Math.max(0,(x-t)/r),l===2?1568:l===1?1046:880,l?.35:.12,.05);n8++}
+ while(ne<E.length&&E[ne].t<h){if($('ding').checked&&E[ne].t>=t-.02){const w=now+Math.max(0,(E[ne].t-t)/r);tone(w,2093,.22,.18);tone(w+.07,2637,.18,.22)}ne++}}
+setInterval(tick,25);
+async function toggle(){if(mode==='K')return kToggle();
+ if(!loaded){msg('Primero toca «Cargar mi MP3» y elige el archivo de la canción.');return}
+ ensureCtx();
+ if(au.paused){try{await au.play()}catch(e){msg('No se pudo reproducir. Toca el botón otra vez.')}}else au.pause()}
+function jump(i){if(mode!=='A')return;loopI=i;rows.forEach(r=>r.classList.toggle('on',+r.dataset.i===i));if(!loaded){msg('Carga tu MP3 y vuelve a tocar la fila.');return}au.currentTime=Math.max(0,E[i].t-3.4);resync();if(au.paused)toggle();if($('loop').checked)msg('Repitiendo: '+E[i].s+' · “'+E[i].c+'”')}
+function setRate(){au.playbackRate=+$('rate').value;au.preservesPitch=true;au.webkitPreservesPitch=true}
+const ICO_PLAY='<path d="M7 4.5v15l13-7.5z"/>',ICO_PAUSE='<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>',ICO_STOP='<path d="M6 6h12v12H6z"/>';
+function icon(p,l){$('ico').innerHTML=p;$('play').setAttribute('aria-label',l)}
+$('file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);au.src=url;au.load();loaded=true;$('fname').textContent=f.name;setRate();$('state').textContent='Listo: dale play'});
+au.addEventListener('loadedmetadata',()=>{$('pos').max=au.duration;$('dur').textContent=fmt(au.duration);setRate();if(Math.abs(au.duration-186)>2)msg('Ojo: este audio dura '+fmt(au.duration)+' y el mapa está medido para la versión de 3:06.')});
+au.addEventListener('play',()=>{setRate();resync();icon(ICO_PAUSE,'Pausar')});
+au.addEventListener('pause',()=>{if(mode==='A')icon(ICO_PLAY,'Reproducir')});
+au.addEventListener('seeked',resync);
+$('play').addEventListener('click',toggle);
+$('back').addEventListener('click',()=>{if(loaded){au.currentTime=Math.max(0,au.currentTime-3.34);resync()}});
+$('rate').addEventListener('change',setRate);
+$('loop').addEventListener('change',e=>{if(e.target.checked){if(loopI<0){loopI=Math.max(0,E.findIndex(x=>x.t>(loaded?au.currentTime:0)))}msg('Repitiendo: '+E[loopI].s+' · “'+E[loopI].c+'”. Toca otra fila para cambiar.')}});
+$('pos').addEventListener('input',e=>{dragging=true;if(loaded){au.currentTime=+e.target.value}});
+$('pos').addEventListener('change',()=>{dragging=false;resync()});
+$('map').addEventListener('click',e=>{const r=e.target.closest('tr[data-i]');if(r)jump(+r.dataset.i)});
+$('map').addEventListener('keydown',e=>{const r=e.target.closest('tr[data-i]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();jump(+r.dataset.i)}});
+
+/* ---------- modos ---------- */
+function setMode(m){if(m===mode)return;if(m==='K'){au.pause()}else{kStop()}mode=m;
+ $('tabA').setAttribute('aria-pressed',m==='A');$('tabK').setAttribute('aria-pressed',m==='K');
+ $('panelA').hidden=m!=='A';$('panelK').hidden=m!=='K';$('evalSec').hidden=m!=='K';$('seekRow').hidden=m!=='A';
+ icon(ICO_PLAY,m==='K'?'Cantar':'Reproducir');lastState='';
+ $('state').textContent=m==='K'?(K.buf?'Toca el botón para cantar':'Carga la pista karaoke'):(loaded?'Listo: dale play':'Carga tu MP3 para empezar')}
+$('tabA').addEventListener('click',()=>setMode('A'));$('tabK').addEventListener('click',()=>setMode('K'));
+
+/* ---------- karaoke ---------- */
+$('kfile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;$('kname').textContent='Cargando '+f.name+'…';
+ try{const c=ensureCtx();const ab=await f.arrayBuffer();K.buf=await c.decodeAudioData(ab);K.ref=null;
+  if(K.buf.numberOfChannels<2){K.buf=null;$('kname').textContent='Este archivo no es la pista karaoke (necesito el que te mandé).';return}
+  $('kname').textContent=f.name+' · '+fmt(K.buf.duration);$('state').textContent='Toca el botón para cantar'}
+ catch(err){K.buf=null;$('kname').textContent='No pude abrir ese archivo.'}});
+$('guide').addEventListener('input',e=>{$('guideV').textContent=e.target.value+' %';if(K.gV)K.gV.gain.value=(+e.target.value/100)**1.5});
+function kToggle(){if(K.playing){kStop();return}
+ if(!K.buf){msg('Primero carga la pista karaoke.');return}
+ const c=ensureCtx();if(!c){msg('Tu navegador no puede reproducir la pista.');return}
+ K.chunks=[];K.mr=null;
+ if(K.stream&&$('recMe').checked){try{const mr=new MediaRecorder(K.stream);mr.ondataavailable=e=>{if(e.data&&e.data.size)K.chunks.push(e.data)};mr.start(1000);K.mr=mr}catch(e){msg('No pude empezar a grabar ('+(e&&e.name||e)+'). Sigue con el método de dos aparatos.')}}
+ const t0=c.currentTime+(K.mr?.8:.35);for(let k=0;k<4;k++)tone(t0+k*P,2400,.5,.12);
+ const src=c.createBufferSource();src.buffer=K.buf;const sp=c.createChannelSplitter(2),gI=c.createGain(),gV=c.createGain();
+ gV.gain.value=(+$('guide').value/100)**1.5;src.connect(sp);sp.connect(gI,0);sp.connect(gV,1);gI.connect(c.destination);gV.connect(c.destination);
+ src.start(t0+4*P);src.onended=()=>{if(K.src===src)kStop(true)};
+ Object.assign(K,{src,gV,start:t0+4*P,playing:true});icon(ICO_STOP,'Detener')}
+function kStop(done){const reached=K.playing&&ctx?ctx.currentTime-K.start:0;
+ if(K.mr&&K.mr.state!=='inactive'){const mr=K.mr;K.mr=null;mr.onstop=()=>{const blob=new Blob(K.chunks,{type:mr.mimeType||'audio/webm'});
+  if(reached<15){msg('Grabaste muy poquito para calificar: canta al menos hasta la primera estrofa.');return}
+  $('rname').textContent='Tu grabación de este intento'+(done?'':' (hasta '+fmt(reached)+')');$('evalSec').scrollIntoView({behavior:'smooth'});
+  analyze(blob,done?Infinity:reached).catch(err=>{$('progTxt').textContent='Algo falló al analizar: '+(err&&err.message||err)})};try{mr.stop()}catch(e){}}
+ if(K.src){try{K.src.onended=null;K.src.stop()}catch(e){}}K.src=null;K.gV=null;if(K.playing&&done)msg('¡Listo! Detén tu grabación y súbela abajo.');K.playing=false;if(mode==='K'){icon(ICO_PLAY,'Cantar');lastState='';$('state').textContent=done?'¡Lo cantaste! Sube tu grabación abajo.':(K.buf?'Toca el botón para cantar':'Carga la pista karaoke');$('state').classList.remove('go');$('ring').classList.remove('go');$('next').textContent='';$('cnt').textContent='';arc.style.strokeDashoffset=String(C)}}
+
+$('micBtn').addEventListener('click',async()=>{const fail=w=>{$('micState').textContent='El navegador bloqueó el micrófono en este visor ('+w+'). Usa los pasos con dos aparatos de abajo.'};
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||typeof MediaRecorder==='undefined'){fail('no hay grabación disponible');return}
+ try{K.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  $('recMe').disabled=false;$('recMe').checked=true;$('micBtn').textContent='Micrófono activo';$('micBtn').disabled=true;$('micState').textContent='Listo: te grabo mientras cantas y te califico al terminar. Usa el parlante a volumen medio, así oigo los 4 pitidos.'}
+ catch(e){fail(e&&e.name||'error')}});
+/* ---------- pantalla ---------- */
+const dots=[...document.querySelectorAll('.d')],arc=$('arc'),C=276.5;let lastE=-1,lastState='';
+function songT(){return mode==='K'?(K.playing&&ctx?ctx.currentTime-K.start:0):(loaded?au.currentTime:0)}
+function ready(){return mode==='K'?K.playing:loaded}
+function frame(){const t=songT(),p=pos(t),rd=ready();
+ if(p.e!==lastE||!rd){dots.forEach((d,k)=>d.classList.toggle('on',k+1===p.e&&rd));lastE=p.e}
+ $('bar').textContent=p.bar?'Compás '+p.bar+' · '+p.e:'Compás –';
+ const s=secAt(t);$('sec').textContent=s[1];
+ if(mode==='A'&&!dragging){$('pos').value=t;$('cur').textContent=fmt(t)}
+ const n=E.findIndex(e=>e.t>t-.45);
+ if(n!==lastN){rows.forEach(r=>r.classList.toggle('on',+r.dataset.i===(loopI>=0&&$('loop').checked&&mode==='A'?loopI:n)));lastN=n}
+ if(!rd){requestAnimationFrame(frame);return}
+ let st,cnt='',frac=0,go=false;
+ if(t<0){st='Cuenta: 1, 2, 3, 4';cnt=String(Math.min(4,Math.max(1,5-Math.ceil(-t/P))));frac=1+t/(4*P)}
+ else if(n<0){st='¡Lo cantaste!';$('next').textContent=s[2]||''}
+ if(t>=0&&n>=0){const e=E[n],dt=e.t-t;
+  if(dt<=0){st='¡Entra!';cnt='YA';frac=1;go=true}
+  else if(dt<.9){st='Respira…';frac=1-dt/3.5;cnt=String(Math.max(1,bi(e.t)-bi(t)))}
+  else if(dt<3.5){st='Prepárate';frac=1-dt/3.5;cnt=String(Math.max(1,bi(e.t)-bi(t)))}
+  else st='Escucha';
+  $('next').innerHTML='Siguiente: <b>“'+esc(e.c)+'”</b> · c'+e.b+' · '+esc(e.p)+(s[2]&&dt>3.5?'<br><small>'+esc(s[2])+'</small>':'')}
+ else if(t<0)$('next').innerHTML='Primera entrada: <b>“'+esc(E[0].c)+'”</b> · c8 · '+esc(E[0].p);
+ if(st!==lastState){$('state').textContent=st;$('state').classList.toggle('go',go);$('ring').classList.toggle('go',go);lastState=st}
+ $('cnt').textContent=cnt;arc.style.strokeDashoffset=String(C*(1-frac));
+ requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+
+/* ---------- análisis de la grabación ---------- */
+const SR=11025,N=2048,H=256,NB=N/2+1,BIN=SR/N,LG=11;
+const WIN=new Float32Array(N);for(let i=0;i<N;i++)WIN[i]=.5-.5*Math.cos(2*Math.PI*i/N);
+const REV=new Uint16Array(N);for(let i=0;i<N;i++){let r=0,x=i;for(let b=0;b<LG;b++){r=(r<<1)|(x&1);x>>=1}REV[i]=r}
+const CO=new Float32Array(N/2),SI=new Float32Array(N/2);for(let i=0;i<N/2;i++){CO[i]=Math.cos(2*Math.PI*i/N);SI[i]=-Math.sin(2*Math.PI*i/N)}
+const RE=new Float32Array(N),IM=new Float32Array(N);
+function fft2(a,ai,b,bi,oA,oB){for(let i=0;i<N;i++){const j=REV[i],ia=ai+i,ib=bi+i;RE[j]=(ia>=0&&ia<a.length?a[ia]:0)*WIN[i];IM[j]=(ib>=0&&ib<b.length?b[ib]:0)*WIN[i]}
+ for(let s=2;s<=N;s<<=1){const h=s>>1,st=N/s;for(let i=0;i<N;i+=s)for(let k=0;k<h;k++){const c=CO[k*st],sn=SI[k*st],p=i+k,q=p+h,tr=RE[q]*c-IM[q]*sn,ti=RE[q]*sn+IM[q]*c;RE[q]=RE[p]-tr;IM[q]=IM[p]-ti;RE[p]+=tr;IM[p]+=ti}}
+ for(let k=0;k<NB;k++){const m=(N-k)%N,zr=RE[k],zi=IM[k],wr=RE[m],wi=IM[m];oA[k]=Math.hypot(zr+wr,zi-wi)/2;oB[k]=Math.hypot(zr-wr,zi+wi)/2}}
+async function resamp(ch,rate){const len=Math.ceil(ch.length*SR/rate),oc=new OfflineAudioContext(1,len,SR),b=oc.createBuffer(1,ch.length,rate);b.copyToChannel(ch,0);const s=oc.createBufferSource();s.buffer=b;s.connect(oc.destination);s.start();return (await oc.startRendering()).getChannelData(0)}
+function mono(buf){const a=buf.getChannelData(0);if(buf.numberOfChannels<2)return a;const b=buf.getChannelData(1),o=new Float32Array(a.length);for(let i=0;i<a.length;i++)o[i]=(a[i]+b[i])/2;return o}
+function yin(x,c,W){const tmax=147,tmin=11,d=new Float32Array(tmax+1);if(c<0||c+W+tmax>=x.length)return 0;
+ for(let t=1;t<=tmax;t++){let s=0;for(let i=0;i<W;i++){const v=x[c+i]-x[c+i+t];s+=v*v}d[t]=s}
+ let run=0;for(let t=1;t<=tmax;t++){run+=d[t];d[t]=run?d[t]*t/run:1}
+ for(let t=tmin;t<tmax;t++)if(d[t]<.15){while(t+1<tmax&&d[t+1]<d[t])t++;const a=d[t-1],b=d[t],cc=d[t+1],den=a-2*b+cc,sh=den?(a-cc)/(2*den):0;return SR/(t+sh)}
+ return 0}
+function gz(x,i0,n,f){const w=2*Math.cos(2*Math.PI*f/SR);let s1=0,s2=0;for(let i=0;i<n;i++){const s=x[i0+i]+w*s1-s2;s2=s1;s1=s}return s1*s1+s2*s2-w*s1*s2}
+const pause=()=>new Promise(r=>setTimeout(r,0));
+function progress(v,txt){$('prog').hidden=false;$('progBar').style.width=Math.round(v*100)+'%';if(txt)$('progTxt').textContent=txt}
+const K0=Math.ceil(150/BIN),K1=Math.floor(3500/BIN);
+const cls=f=>((1200*Math.log2(f/440))%1200+1200)%1200;
+const wrap=c=>((c+600)%1200+1200)%1200-600;
+const smooth=e=>{const o=new Float32Array(e.length);for(let j=0;j<e.length;j++){const a=e[Math.max(0,j-1)],b=e[j],c=e[Math.min(e.length-1,j+1)];o[j]=(a+b+c)/3}return o};
+async function prepRef(){if(K.ref)return K.ref;
+ const L=await resamp(K.buf.getChannelData(0),K.buf.sampleRate),R=await resamp(K.buf.getChannelData(1),K.buf.sampleRate);
+ const nF=Math.floor((L.length-N)/H),rE=new Float32Array(nF),f0=new Float32Array(nF),pc=new Float32Array(nF).fill(NaN),mix=new Float32Array(nF),A=new Float32Array(NB),Bq=new Float32Array(NB);let mx=-200;
+ for(let j=0;j<nF;j++){fft2(R,j*H,L,j*H,A,Bq);let s=0,m=0;for(let k=K0;k<=K1;k++){s+=A[k]*A[k];m+=(A[k]+Bq[k])**2}rE[j]=10*Math.log10(s+1e-12);mix[j]=10*Math.log10(m+1e-12);if(rE[j]>mx)mx=rE[j];if(j%500===0){progress(.03+.15*j/nF,'Escuchando a Julieta…');await pause()}}
+ const refA=new Uint8Array(nF);
+ for(let j=0;j<nF;j++){refA[j]=rE[j]>mx-30?1:0;if(refA[j]){f0[j]=yin(R,j*H+768,512);if(f0[j]>0)pc[j]=cls(f0[j])}if(j%500===0){progress(.18+.14*j/nF,'Escuchando a Julieta…');await pause()}}
+ K.ref={L,nF,f0,pc,refA,rE:smooth(rE),mix};return K.ref}
+function findBeeps(rec){const hop=55,n=220,cnt=Math.floor((Math.min(rec.length,SR*90)-n)/hop);if(cnt<800)return null;const r=new Float32Array(cnt);
+ for(let j=0;j<cnt;j++){const i=j*hop,p=gz(rec,i,n,2400),q=(gz(rec,i,n,1900)+gz(rec,i,n,2950))/2+1e-9;r[j]=p/q}
+ const Pf=P*SR/hop,gap=Math.round(.3*SR/hop),cands=[];
+ for(let j=gap;j+Math.round(3*Pf)+gap<cnt;j++){let v=1e9,okd=true;for(let k=0;k<4;k++){const c=j+Math.round(k*Pf);v=Math.min(v,r[c]);if(r[c+gap]>.2*r[c]||r[c-gap]>.2*r[c])okd=false}if(okd&&v>=6)cands.push([j,v])}
+ if(!cands.length)return null;const[best,bs]=cands.reduce((a,b)=>b[1]>a[1]?b:a);let acc=0;
+ for(let k=0;k<4;k++){const c=best+Math.round(k*Pf);let pk=0;for(let j=c-8;j<=c+30&&j<cnt;j++)if(j>=0&&r[j]>pk)pk=r[j];let on=c;for(let j=Math.max(0,c-12);j<=c+30&&j<cnt;j++)if(r[j]>pk*.5){on=j;break}acc+=(on*hop+n/2)/SR-k*P}
+ return {off:acc/4+4*P,score:bs}}
+function envSync(rec,ref,fixed){const M=Math.floor((rec.length-N)/H);if(M<200)return null;const e=new Float32Array(M);let prev=0;
+ for(let j=0;j<M;j++){const c=j*H+512;let s=0;for(let i=0;i<1024;i++)s+=rec[c+i]*rec[c+i];const d=10*Math.log10(s/1024+1e-12);e[j]=Math.max(0,d-prev);prev=d}
+ const L=Math.min(ref.nF,2600),gm=new Float32Array(L),gv=new Float32Array(L);for(let j=1;j<L;j++){gm[j]=Math.max(0,ref.mix[j]-ref.mix[j-1]);gv[j]=Math.max(0,ref.rE[j]-ref.rE[j-1])}
+ const lags=fixed!==undefined?[Math.round(fixed*SR/H)]:null;let best=0,bv=-1;
+ for(const g of[gm,gv]){let n2=0;for(let j=0;j<L;j++)n2+=g[j]*g[j];n2=Math.sqrt(n2)||1;
+  const lo=lags?lags[0]:-Math.floor(L/2),hi=lags?lags[0]+1:M-200;
+  for(let lag=lo;lag<hi;lag++){let s=0,ee=0;for(let j=0;j<L;j++){const k=j+lag;if(k>=0&&k<M){s+=g[j]*e[k];ee+=e[k]*e[k]}}const v=s/(n2*(Math.sqrt(ee)||1));if(v>bv){bv=v;best=lag}}}
+ return {off:best*H/SR,score:bv}}
+const rise=(e,j)=>(e[j]+e[j+1]+e[j+2])/3-(e[j-2]+e[j-3]+e[j-4])/3;
+function peaks(e,j0,j1,ok){const out=[];j0=Math.max(5,j0);j1=Math.min(j1,e.length-4);for(let j=j0;j<=j1;j++){const r=rise(e,j);if(r>=6&&r>=rise(e,j-1)&&r>rise(e,j+1)&&(!ok||ok(j))){let s=j;while(s>5&&rise(e,s-1)>=.6*r)s--;out.push([s,r])}}return out}
+function refAttack(e,j0,j1,ok){const p=peaks(e,j0,j1,ok);if(!p.length)return -1;return p.reduce((a,b)=>b[1]>a[1]?b:a)[0]}
+function stuAttack(e,j0,j1,target,ok){const p=peaks(e,j0,j1,ok);if(!p.length)return -1;const mr=Math.max(...p.map(x=>x[1]));let best=-1,bd=1e9;for(const[s,r]of p)if(r>=.5*mr&&Math.abs(s-target)<bd){bd=Math.abs(s-target);best=s}return best}
+async function analyze(file,upto=Infinity){$('res').innerHTML='';progress(0,'Abriendo tu grabación…');
+ if(!K.buf){$('progTxt').textContent='Primero carga la pista karaoke (arriba).';return}
+ let rb;try{rb=await ensureCtx().decodeAudioData(await file.arrayBuffer())}catch(e){$('progTxt').textContent='No pude leer ese archivo de audio. Prueba con una nota de voz (.m4a o .mp3).';return}
+ const rec=await resamp(mono(rb),rb.sampleRate);const ref=await prepRef();
+ progress(.33,'Buscando los 4 pitidos…');await pause();
+ const bp=findBeeps(rec);progress(.36,'Sincronizando con la canción…');await pause();const ms=envSync(rec,ref);let off=null,how='music';
+ if(bp&&ms&&Math.abs(bp.off-ms.off)>.5){const bsc=envSync(rec,ref,bp.off);if(bsc&&bsc.score>=.85*ms.score){off=bp.off;how='beeps'}else off=ms.off}
+ else if(bp){off=bp.off;how='beeps'}else if(ms)off=ms.off;
+ if(off===null){$('progTxt').textContent='La grabación es muy corta para analizarla.';return}
+ const o=Math.round(off*SR),nF=Math.min(ref.nF,Math.floor(upto*SR/H)),L=ref.L,X=new Float32Array(NB),I=new Float32Array(NB);
+ const quiet=j=>{const t=j*H/SR;return((t>1&&t<11)||(t>70.5&&t<79.5))&&!ref.refA[j]};
+ const sx=new Float64Array(NB),si=new Float64Array(NB);
+ for(let j=0;j<nF;j++)if(quiet(j)){fft2(rec,o+j*H,L,j*H,X,I);for(let k=0;k<NB;k++){sx[k]+=X[k];si[k]+=I[k]}}
+ const G=new Float32Array(NB);for(let k=0;k<NB;k++)G[k]=Math.min(8,sx[k]/(si[k]+1e-9));
+ const near=new Uint8Array(nF);for(let j=0;j<nF;j++)if(ref.refA[j])for(let d=-7;d<=7;d++)if(j+d>=0&&j+d<nF)near[j+d]=1;
+ const Rm=new Float32Array(NB),edb=new Float32Array(nF),pcS=new Float32Array(nF).fill(NaN),qE=[];
+ const NC=Math.floor(1200*Math.log2(1000/80)/10),CF=new Float32Array(NC);for(let i=0;i<NC;i++)CF[i]=80*2**(i/120);
+ const interp=f=>{const x=f/BIN,i=Math.floor(x);if(i<1||i>=NB-1)return 0;const u=x-i;return Rm[i]*(1-u)+Rm[i+1]*u};
+ for(let j=0;j<nF;j++){fft2(rec,o+j*H,L,j*H,X,I);let e=0;for(let k=0;k<NB;k++){const v=X[k]-1.25*G[k]*I[k];Rm[k]=v>0?v:0;if(k>=K0&&k<=K1)e+=Rm[k]*Rm[k]}
+  edb[j]=10*Math.log10(e+1e-12);if(quiet(j))qE.push(edb[j]);
+  if(near[j]){let bs=-1,bc=0,sum=0;for(let c=0;c<NC;c++){let s=0,w=1;const f=CF[c];for(let h=1;h<=8&&h*f<4000;h++){s+=w*interp(h*f);w*=.85}sum+=s;if(s>bs){bs=s;bc=c}}if(bs>1.3*sum/NC)pcS[j]=cls(CF[bc])}
+  if(j%300===0){progress(.4+.55*j/nF,'Comparando tu voz con la de Julieta…');await pause()}}
+ qE.sort((a,b)=>a-b);const floor=qE.length?qE[Math.floor(qE.length*.6)]:-60,peak=[...edb].sort((a,b)=>a-b)[Math.floor(nF*.97)];
+ const thr=Math.max(floor+8,peak-32),stu=new Uint8Array(nF);for(let j=0;j<nF;j++)stu[j]=edb[j]>thr?1:0;
+ for(let j=1;j<nF-1;j++)if(!stu[j]&&stu[j-1]&&stu[j+1])stu[j]=1;
+ const se=smooth(edb);
+ progress(.97,'Calificando…');await pause();
+ const R={how,off,entries:[],upto};let inT=0,outT=0,cs=[],vox=0,voxHit=0,sil=0,silHit=0;const secs={};
+ for(let j=0;j<nF;j++){const t=j*H/SR,sname=secAt(t)[1];const sc=secs[sname]||(secs[sname]={vox:0,hit:0,inT:0,n:0});
+  if(ref.refA[j]){vox++;sc.vox++;if(stu[j]){voxHit++;sc.hit++}}else if(t>1&&t<181){sil++;if(stu[j])silHit++}
+  if(!isNaN(ref.pc[j])&&stu[j]){let bd=1e9;for(let d=-6;d<=6;d++){const k=j+d;if(k>=0&&k<nF&&stu[k]&&!isNaN(pcS[k])){const v=wrap(pcS[k]-ref.pc[j]);if(Math.abs(v)<Math.abs(bd))bd=v}}
+   if(bd<1e9){sc.n++;if(Math.abs(bd)<=50){inT++;sc.inT++}else outT++;if(Math.abs(bd)<=150)cs.push(bd)}}}
+ const fr=t=>Math.round(t*SR/H);
+ for(const e of E){if(e.t>upto-.6)continue;const rj=refAttack(ref.rE,fr(e.t-.45),fr(e.t+.45),j=>ref.refA[j+2]);
+  if(rj<0){R.entries.push({e,v:'na'});continue}
+  const sj=stuAttack(se,rj-fr(.6),rj+fr(.8),rj,j=>stu[j+2]);
+  if(sj<0){R.entries.push({e,v:'miss'});continue}
+  const d=(sj-rj)*H/SR;R.entries.push({e,d,v:Math.abs(d)<=.13?'ok':d<0?'early':'late'})}
+ const ev=R.entries.filter(x=>x.v!=='na'),ok=ev.filter(x=>x.v==='ok').length;
+ R.entPct=ev.length?Math.round(100*ok/ev.length):0;R.ok=ok;R.evald=ev.length;
+ R.pitchPct=inT+outT?Math.round(100*inT/(inT+outT)):0;R.pitchN=inT+outT;
+ R.presPct=vox?Math.round(100*voxHit/vox):0;R.extraPct=sil?Math.round(100*silHit/sil):0;
+ R.total=Math.round(.45*R.entPct+.4*R.pitchPct+.15*R.presPct);
+ const ds=ev.filter(x=>x.d!==undefined).map(x=>x.d).sort((a,b)=>a-b),md=ds.length?ds[Math.floor(ds.length/2)]:0;
+ cs.sort((a,b)=>a-b);const mc=cs.length?cs[Math.floor(cs.length/2)]:0;
+ R.tips=[];
+ if(R.presPct<25&&upto===Infinity){R.tips.push('Casi no oí tu voz en la grabación. Canta más cerca del celular o baja un poco el volumen del parlante.')}
+ else{
+  if(md>.08)R.tips.push('Tiendes a entrar tarde (unos '+Math.round(md*1000)+' ms). Toma el aire un pulso antes para llegar a tiempo.');
+  else if(md<-.08)R.tips.push('Tiendes a adelantarte (unos '+Math.round(-md*1000)+' ms). Espera el pulso: cuenta por dentro hasta el tiempo exacto.');
+  else if(ds.length)R.tips.push('Tu momento de entrada promedio está bien centrado.');
+  const grp={};for(const x of ev){const g=x.e.c.startsWith('Qué')?'los «Qué…» del coro':x.e.c.startsWith('Me')||x.e.c.startsWith('me')?'los «Me…» del coro':x.e.s.startsWith('Pre')?'los pre-coros':x.e.s.startsWith('Estrofa')?'las estrofas':null;if(!g)continue;(grp[g]=grp[g]||[0,0])[1]++;if(x.v!=='ok')grp[g][0]++}
+  let wg=null,wr=0;for(const g in grp){const r=grp[g][0]/grp[g][1];if(grp[g][1]>=2&&r>wr){wr=r;wg=g}}
+  if(wg&&wr>=.4)R.tips.push('Donde más fallas es en '+wg+'. Practícalos en el modo de ensayo con «Repetir la entrada elegida».');
+  if(R.pitchN>30){if(mc>15)R.tips.push('Tu afinación tiende a ir un poquito alta (+'+Math.round(mc)+' cents). Relaja la garganta en las notas largas.');else if(mc<-15)R.tips.push('Tu afinación tiende a quedarse un poquito baja ('+Math.round(mc)+' cents). Apoya más el aire y piensa la nota «arriba».');}
+  if(R.extraPct>20)R.tips.push('Se oye voz en partes donde Julieta calla. Si no eras tú, puede ser ruido de fondo; si eras tú, respeta esos silencios.');}
+ R.secs=S.map(x=>x[1]).filter(n=>secs[n]&&secs[n].vox>40).map(n=>({n,pitch:secs[n].n?Math.round(100*secs[n].inT/secs[n].n):null,pres:Math.round(100*secs[n].hit/secs[n].vox)}));
+ window.__lastResult=R;$('prog').hidden=true;$('progTxt').textContent='';renderRes(R);saveHist(R)}
+function verdict(x){if(x.v==='na')return['v-na','va ligada a la frase anterior: no se mide'];if(x.v==='miss')return['v-bad','no encontré tu entrada'];
+ const s=(x.d>0?'+':'')+x.d.toFixed(2)+' s',eg=Math.abs(x.d)/(P/3),ex=eg>=.75?' (≈ '+(Math.round(eg*2)/2).toString().replace('.',',')+' corchea'+(eg>=1.25?'s':'')+')':'';
+ return x.v==='ok'?['v-ok','a tiempo ('+s+')']:x.v==='early'?['v-meh','adelantada '+s+ex]:['v-bad','tarde '+s+ex]}
+function renderRes(R){const head=R.total>=85?'¡Qué nivel! Las entradas ya son tuyas.':R.total>=70?'Vas muy bien.':R.total>=50?'Buen comienzo.':'Vamos paso a paso.';
+ const sub=R.total>=85?'Ahora a pulir detalles y a disfrutar.':R.total>=70?'Repasa las entradas en rosa con el modo de ensayo.':R.total>=50?'Practica las entradas clave al 75 % y vuelve a grabarte.':'Empieza por las entradas clave en el modo de ensayo, con clic y al 75 %.';
+ const mt=[['Entradas a tiempo',R.entPct,R.ok+' de '+R.evald+' entradas medidas'],['Afinación',R.pitchPct,'comparada con la melodía de Julieta, sin importar la octava'],['Presencia',R.presPct,'cantaste donde va la voz']];
+ let h=`<div class="score"><div class="num big">${R.total}<small> /100</small></div><div><b>${esc(head)}</b><p>${esc(sub)}</p></div></div>
+ <div class="meters">${mt.map(([l,v,d])=>`<div class="m"><span>${esc(l)}</span><div class="track"><i style="width:${v}%"></i></div><b>${v} %</b><small>${esc(d)}</small></div>`).join('')}</div>
+ <ul class="tend">${R.tips.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+ <h3>Por sección</h3><table><thead><tr><th>Sección</th><th class="r">Afinación</th><th class="r">Presencia</th></tr></thead><tbody>${R.secs.map(s=>`<tr><td>${esc(s.n)}</td><td class="r t">${s.pitch===null?'–':s.pitch+' %'}</td><td class="r t">${s.pres} %</td></tr>`).join('')}</tbody></table>
+ <h3>Entrada por entrada</h3><table><thead><tr><th>Compás</th><th>Frase</th><th>Resultado</th></tr></thead><tbody>${R.entries.map(x=>{const[c,t]=verdict(x);return`<tr><td class="t">c${x.e.b}</td><td>${esc(x.e.s)} · “${esc(x.e.c)}”</td><td class="${c}">${esc(t)}</td></tr>`}).join('')}</tbody></table>
+ ${R.upto<Infinity?`<p class="note">Calificación solo del tramo que cantaste: hasta ${fmt(R.upto)}.</p>`:''}<p class="note">${R.how==='beeps'?'Sincronicé tu grabación con los 4 pitidos.':'No oí los 4 pitidos, así que sincronicé comparando tu grabación con la canción (es menos preciso). Para la próxima, empieza a grabar antes de tocar el botón y usa el parlante.'}</p>`;
+ $('res').innerHTML=h}
+function saveHist(R){let a=[];try{a=JSON.parse(localStorage.getItem('mevoy-intentos')||'[]')}catch(e){}a.push({d:new Date().toISOString().slice(5,10),s:R.total});a=a.slice(-12);try{localStorage.setItem('mevoy-intentos',JSON.stringify(a))}catch(e){}showHist(a)}
+function showHist(a){if(!a||!a.length)return;$('histBox').hidden=false;$('hist').innerHTML=a.map((x,i)=>`<span>Intento ${i+1} · ${esc(x.d.split('-').reverse().join('/'))} · <b>${Number(x.s)||0}</b></span>`).join('')}
+try{showHist(JSON.parse(localStorage.getItem('mevoy-intentos')||'[]'))}catch(e){}
+$('rfile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;$('rname').textContent=f.name;analyze(f).catch(err=>{$('progTxt').textContent='Algo falló al analizar: '+(err&&err.message||err)})});
+}
+</script>
+</body>
+</html>
