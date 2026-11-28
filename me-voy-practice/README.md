@@ -10,6 +10,7 @@ Single-page rehearsal tool for "Me Voy" (Julieta Venegas), for Emi's 9 Dec prese
   - entries on time (±0.13 s, attack vs. guide vocal attack)
   - pitch (pitch class vs. guide vocal, octave-agnostic, ±50 cents)
   - presence (singing where the vocal is)
+- **Listen back**: after scoring, plays the take aligned with the track (voice, track and guide-vocal faders, light room reverb, compressor). Tap any entry in the results to hear it from 2 bars before. Exports the mix as a 44.1 kHz WAV (~33 MB).
 
 ## Data
 

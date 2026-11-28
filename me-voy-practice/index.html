@@ -93,6 +93,7 @@ tr.on{background:var(--soft);box-shadow:inset 4px 0 0 var(--rosa)}
 .tip{color:var(--mute)}
 .plan ol{padding-left:1.2em;margin:0;max-width:70ch}.plan li{margin-bottom:8px}
 .note{font-size:14px;color:var(--mute);max-width:70ch}
+.mix{margin-top:18px;padding:16px;border-radius:18px;background:var(--soft)}.mix h3{margin-top:0}.mixrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;font-variant-numeric:tabular-nums}.mixrow input{flex:1;min-width:140px;accent-color:var(--rosa);height:28px}.mix .opts{margin-top:10px}.mix .opts input[type=range]{accent-color:var(--rosa)}.mix .opts input[type=checkbox]{accent-color:var(--rosa)}.pbb{gap:8px}.pbb svg{width:18px;height:18px}#res tr[data-i]{cursor:pointer}#res tr[data-i]:hover{background:var(--soft)}
 .hist{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.hist span{background:var(--soft);border-radius:99px;padding:4px 12px;font-size:14px;font-variant-numeric:tabular-nums}
 pre,.scroll{overflow-x:auto}code{overflow-wrap:anywhere}html{scroll-padding-top:200px}
 @media(max-width:600px){table{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:7.2em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:6.8em;margin-inline-start:-7.2em;white-space:normal;color:var(--mute);font-size:13px}.stack td:empty{display:none}.stack tr.sec{display:block}
@@ -224,7 +225,7 @@ function tick(){if(mode!=='A'||!ctx||au.paused)return;const t=au.currentTime,r=a
  while(n8<T8.length&&T8[n8][0]<h){const[x,l]=T8[n8];if(x>=t-.02&&md!=='off'&&(l||md==='eighths'))tone(now+Math.max(0,(x-t)/r),l===2?1568:l===1?1046:880,l?.35:.12,.05);n8++}
  while(ne<E.length&&E[ne].t<h){if($('ding').checked&&E[ne].t>=t-.02){const w=now+Math.max(0,(E[ne].t-t)/r);tone(w,2093,.22,.18);tone(w+.07,2637,.18,.22)}ne++}}
 setInterval(tick,25);
-async function toggle(){if(mode==='K')return kToggle();
+async function toggle(){if(mode==='K'){if(PB.playing){pbStop();return}return kToggle()}
  if(!loaded){msg('Primero toca «Cargar mi MP3» y elige el archivo de la canción.');return}
  ensureCtx();
  if(au.paused){try{await au.play()}catch(e){msg('No se pudo reproducir. Toca el botón otra vez.')}}else au.pause()}
@@ -247,7 +248,7 @@ $('map').addEventListener('click',e=>{const r=e.target.closest('tr[data-i]');if(
 $('map').addEventListener('keydown',e=>{const r=e.target.closest('tr[data-i]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();jump(+r.dataset.i)}});
 
 /* ---------- modos ---------- */
-function setMode(m){if(m===mode)return;if(m==='K'){au.pause()}else{kStop()}mode=m;
+function setMode(m){if(m===mode)return;pbStop();if(m==='K'){au.pause()}else{kStop()}mode=m;
  $('tabA').setAttribute('aria-pressed',m==='A');$('tabK').setAttribute('aria-pressed',m==='K');
  $('panelA').hidden=m!=='A';$('panelK').hidden=m!=='K';$('evalSec').hidden=m!=='K';$('seekRow').hidden=m!=='A';
  icon(ICO_PLAY,m==='K'?'Cantar':'Reproducir');lastState='';
@@ -262,6 +263,7 @@ $('kfile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)r
  catch(err){K.buf=null;$('kname').textContent='No pude abrir ese archivo.'}});
 $('guide').addEventListener('input',e=>{$('guideV').textContent=e.target.value+' %';if(K.gV)K.gV.gain.value=(+e.target.value/100)**1.5});
 function kToggle(){if(K.playing){kStop();return}
+ pbStop();
  if(!K.buf){msg('Primero carga la pista karaoke.');return}
  const c=ensureCtx();if(!c){msg('Tu navegador no puede reproducir la pista.');return}
  K.chunks=[];K.mr=null;
@@ -285,13 +287,14 @@ $('micBtn').addEventListener('click',async()=>{const fail=w=>{$('micState').text
  catch(e){fail(e&&e.name||'error')}});
 /* ---------- pantalla ---------- */
 const dots=[...document.querySelectorAll('.d')],arc=$('arc'),C=276.5;let lastE=-1,lastState='';
-function songT(){return mode==='K'?(K.playing&&ctx?ctx.currentTime-K.start:0):(loaded?au.currentTime:0)}
-function ready(){return mode==='K'?K.playing:loaded}
+function songT(){return mode==='K'?(PB.playing?pbT():K.playing&&ctx?ctx.currentTime-K.start:0):(loaded?au.currentTime:0)}
+function ready(){return mode==='K'?(K.playing||PB.playing):loaded}
 function frame(){const t=songT(),p=pos(t),rd=ready();
  if(p.e!==lastE||!rd){dots.forEach((d,k)=>d.classList.toggle('on',k+1===p.e&&rd));lastE=p.e}
  $('bar').textContent=p.bar?'Compás '+p.bar+' · '+p.e:'Compás –';
  const s=secAt(t);$('sec').textContent=s[1];
  if(mode==='A'&&!dragging){$('pos').value=t;$('cur').textContent=fmt(t)}
+ if(PB.playing&&$('pbPos')){const x=pbT();$('pbPos').value=x;$('pbCur').textContent=fmt(x)}
  const n=E.findIndex(e=>e.t>t-.45);
  if(n!==lastN){rows.forEach(r=>r.classList.toggle('on',+r.dataset.i===(loopI>=0&&$('loop').checked&&mode==='A'?loopI:n)));lastN=n}
  if(!rd){requestAnimationFrame(frame);return}
@@ -310,6 +313,51 @@ function frame(){const t=songT(),p=pos(t),rd=ready();
  requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
 
+/* ---------- escuchar tu versión ---------- */
+const PB={playing:false,nodes:null,start:0,from:0,irs:new WeakMap()};
+const framed=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+const lvl=id=>{const el=$(id);return el?(+el.value/100)**1.5:0};
+function impulse(c){let ir=PB.irs.get(c);if(ir)return ir;const n=Math.floor(c.sampleRate*1.6),pre=Math.floor(c.sampleRate*.012);ir=c.createBuffer(2,n,c.sampleRate);
+ for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=pre;i<n;i++)d[i]=(Math.random()*2-1)*Math.exp(-(i-pre)/(c.sampleRate*.3))}PB.irs.set(c,ir);return ir}
+function voiceGain(){const tk=K.take;if(tk.g)return tk.g;let m=0;for(let ch=0;ch<tk.buf.numberOfChannels;ch++){const d=tk.buf.getChannelData(ch);for(let i=0;i<d.length;i+=3){const v=Math.abs(d[i]);if(v>m)m=v}}return tk.g=Math.min(8,.7/(m||1))}
+function buildMix(c,dest,t,when){const s=c.createBufferSource();s.buffer=K.buf;const sp=c.createChannelSplitter(2),gI=c.createGain(),gJ=c.createGain();gI.gain.value=lvl('mxI');gJ.gain.value=lvl('mxJ');
+ s.connect(sp);sp.connect(gI,0);sp.connect(gJ,1);gI.connect(dest);gJ.connect(dest);
+ const v=c.createBufferSource();v.buffer=K.take.buf;const pre=c.createGain();pre.gain.value=voiceGain();const hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=90;
+ const cp=c.createDynamicsCompressor();cp.threshold.value=-24;cp.ratio.value=3;cp.attack.value=.005;cp.release.value=.2;
+ const gV=c.createGain();gV.gain.value=lvl('mxV');const cv=c.createConvolver();cv.buffer=impulse(c);const wet=c.createGain();wet.gain.value=$('mxR')&&$('mxR').checked?.22:0;
+ v.connect(pre).connect(hp).connect(cp).connect(gV);gV.connect(dest);gV.connect(cv).connect(wet).connect(dest);
+ s.start(when,Math.min(t,K.buf.duration-.05));const vo=K.take.off+t;if(vo>=0){if(vo<K.take.buf.duration)v.start(when,vo)}else v.start(when-vo,0);
+ return{s,v,gI,gJ,gV,wet}}
+function pbT(){return PB.playing&&ctx?PB.from+ctx.currentTime-PB.start:PB.from}
+function pbIcon(){const b=$('pbBtn');if(b)b.innerHTML=(PB.playing?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>Pausar':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>Escuchar');if(mode==='K')icon(PB.playing?ICO_PAUSE:ICO_PLAY,PB.playing?'Pausar':'Cantar')}
+function pbStop(){const n=PB.nodes;if(n){n.s.onended=null;try{n.s.stop()}catch(e){}try{n.v.stop()}catch(e){}}const was=PB.playing;if(was)PB.from=pbT();PB.nodes=null;PB.playing=false;lastState='';pbIcon();if(was&&mode==='K'){$('state').textContent='Pausa · toca «Escuchar» para seguir';$('state').classList.remove('go');$('ring').classList.remove('go');$('next').textContent='';$('cnt').textContent='';arc.style.strokeDashoffset=String(C);dots.forEach(d=>d.classList.remove('on'))}}
+function pbPlay(t){if(!K.take||!K.buf)return;if(K.playing)kStop();pbStop();const c=ensureCtx();if(!c)return;const when=c.currentTime+.08;
+ const n=buildMix(c,c.destination,Math.max(0,t),when);PB.nodes=n;PB.start=when;PB.from=Math.max(0,t);PB.playing=true;
+ n.s.onended=()=>{if(PB.nodes===n){try{n.v.stop()}catch(e){}pbStop();PB.from=0}};pbIcon()}
+function mixCard(){if(!K.take)return'';const d=K.buf.duration;
+ return`<div class="mix"><h3>Escucha tu versión</h3>
+ <div class="mixrow"><button class="btn pick2 pbb" id="pbBtn"></button><span id="pbCur">0:00</span><input type="range" id="pbPos" min="0" max="${d.toFixed(1)}" step="0.1" value="0" aria-label="Posición de tu versión"><span>${fmt(d)}</span></div>
+ <div class="opts"><label>Tu voz <input type="range" id="mxV" min="0" max="150" value="100"></label><label>Pista <input type="range" id="mxI" min="0" max="100" value="70"></label><label>Voz de Julieta <input type="range" id="mxJ" min="0" max="100" value="0"></label><label><input type="checkbox" id="mxR" checked> Eco de sala</label></div>
+ <div class="load">${framed?'<span class="note">La descarga funciona en la versión de GitHub Pages.</span>':'<button class="btn pick" id="dlBtn">Descargar mi versión (WAV)</button><span class="note" id="dlTxt">Unos 33 MB, para guardarla o compartirla.</span>'}</div>
+ <p class="note">Sube «Voz de Julieta» para comparar. Toca cualquier entrada de la tabla de abajo para escucharla desde 2 compases antes.</p></div>`}
+function bindMix(){if(!$('pbBtn'))return;pbIcon();
+ $('pbBtn').addEventListener('click',()=>{if(PB.playing)pbStop();else pbPlay(PB.from>=K.buf.duration-.5?0:PB.from)});
+ $('pbPos').addEventListener('input',e=>{PB.from=+e.target.value;$('pbCur').textContent=fmt(PB.from);if(PB.playing)pbPlay(PB.from)});
+ const live=()=>{const n=PB.nodes;if(!n)return;n.gV.gain.value=lvl('mxV');n.gI.gain.value=lvl('mxI');n.gJ.gain.value=lvl('mxJ');n.wet.gain.value=$('mxR').checked?.22:0};
+ ['mxV','mxI','mxJ','mxR'].forEach(id=>$(id).addEventListener('input',live));$('mxR').addEventListener('change',live);
+ if($('dlBtn'))$('dlBtn').addEventListener('click',downloadMix);
+ const go=r=>{if(r&&r.dataset.i>=0)pbPlay(Math.max(0,E[+r.dataset.i].t-3.4))};
+ $('res').addEventListener('click',e=>go(e.target.closest('tr[data-i]')));
+ $('res').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const r=e.target.closest('tr[data-i]');if(r){e.preventDefault();go(r)}}})}
+function wavBlob(b){const n=b.length,ch=b.numberOfChannels,d=[];for(let i=0;i<ch;i++)d.push(b.getChannelData(i));let pk=0;for(const x of d)for(let i=0;i<n;i++){const v=Math.abs(x[i]);if(v>pk)pk=v}const g=pk>.98?.98/pk:1;
+ const dv=new DataView(new ArrayBuffer(44+n*ch*2)),w=(o,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(o+i,s.charCodeAt(i))};
+ w(0,'RIFF');dv.setUint32(4,36+n*ch*2,true);w(8,'WAVE');w(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,ch,true);dv.setUint32(24,b.sampleRate,true);dv.setUint32(28,b.sampleRate*ch*2,true);dv.setUint16(32,ch*2,true);dv.setUint16(34,16,true);w(36,'data');dv.setUint32(40,n*ch*2,true);
+ let o=44;for(let i=0;i<n;i++)for(let c=0;c<ch;c++){const v=Math.max(-1,Math.min(1,d[c][i]*g));dv.setInt16(o,v<0?v*32768:v*32767,true);o+=2}return new Blob([dv],{type:'audio/wav'})}
+async function downloadMix(){const btn=$('dlBtn');btn.disabled=true;$('dlTxt').textContent='Mezclando tu versión…';
+ try{const sr=44100,oc=new OfflineAudioContext(2,Math.ceil(K.buf.duration*sr),sr);buildMix(oc,oc.destination,0,0);const out=await oc.startRendering();const blob=wavBlob(out);
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='MeVoy_mi-version_'+new Date().toISOString().slice(0,10)+'.wav';document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000);$('dlTxt').textContent='Lista: '+Math.round(blob.size/1e6)+' MB.'}
+ catch(e){$('dlTxt').textContent='No pude preparar la descarga ('+(e&&e.message||e)+').'}btn.disabled=false}
 /* ---------- análisis de la grabación ---------- */
 const SR=11025,N=2048,H=256,NB=N/2+1,BIN=SR/N,LG=11;
 const WIN=new Float32Array(N);for(let i=0;i<N;i++)WIN[i]=.5-.5*Math.cos(2*Math.PI*i/N);
@@ -368,6 +416,7 @@ async function analyze(file,upto=Infinity){$('res').innerHTML='';progress(0,'Abr
  if(bp&&ms&&Math.abs(bp.off-ms.off)>.5){const bsc=envSync(rec,ref,bp.off);if(bsc&&bsc.score>=.85*ms.score){off=bp.off;how='beeps'}else off=ms.off}
  else if(bp){off=bp.off;how='beeps'}else if(ms)off=ms.off;
  if(off===null){$('progTxt').textContent='La grabación es muy corta para analizarla.';return}
+ pbStop();PB.from=0;K.take={buf:rb,off,g:null};
  const o=Math.round(off*SR),nF=Math.min(ref.nF,Math.floor(upto*SR/H)),L=ref.L,X=new Float32Array(NB),I=new Float32Array(NB);
  const quiet=j=>{const t=j*H/SR;return((t>1&&t<11)||(t>70.5&&t<79.5))&&!ref.refA[j]};
  const sx=new Float64Array(NB),si=new Float64Array(NB);
@@ -424,12 +473,13 @@ function renderRes(R){const head=R.total>=85?'¡Qué nivel! Las entradas ya son 
  const sub=R.total>=85?'Ahora a pulir detalles y a disfrutar.':R.total>=70?'Repasa las entradas en rosa con el modo de ensayo.':R.total>=50?'Practica las entradas clave al 75 % y vuelve a grabarte.':'Empieza por las entradas clave en el modo de ensayo, con clic y al 75 %.';
  const mt=[['Entradas a tiempo',R.entPct,R.ok+' de '+R.evald+' entradas medidas'],['Afinación',R.pitchPct,'comparada con la melodía de Julieta, sin importar la octava'],['Presencia',R.presPct,'cantaste donde va la voz']];
  let h=`<div class="score"><div class="num big">${R.total}<small> /100</small></div><div><b>${esc(head)}</b><p>${esc(sub)}</p></div></div>
+ ${mixCard()}
  <div class="meters">${mt.map(([l,v,d])=>`<div class="m"><span>${esc(l)}</span><div class="track"><i style="width:${v}%"></i></div><b>${v} %</b><small>${esc(d)}</small></div>`).join('')}</div>
  <ul class="tend">${R.tips.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
  <h3>Por sección</h3><table><thead><tr><th>Sección</th><th class="r">Afinación</th><th class="r">Presencia</th></tr></thead><tbody>${R.secs.map(s=>`<tr><td>${esc(s.n)}</td><td class="r t">${s.pitch===null?'–':s.pitch+' %'}</td><td class="r t">${s.pres} %</td></tr>`).join('')}</tbody></table>
- <h3>Entrada por entrada</h3><table><thead><tr><th>Compás</th><th>Frase</th><th>Resultado</th></tr></thead><tbody>${R.entries.map(x=>{const[c,t]=verdict(x);return`<tr><td class="t">c${x.e.b}</td><td>${esc(x.e.s)} · “${esc(x.e.c)}”</td><td class="${c}">${esc(t)}</td></tr>`}).join('')}</tbody></table>
+ <h3>Entrada por entrada</h3><table><thead><tr><th>Compás</th><th>Frase</th><th>Resultado</th></tr></thead><tbody>${R.entries.map(x=>{const[c,t]=verdict(x);return`<tr tabindex="0" data-i="${E.indexOf(x.e)}"><td class="t">c${x.e.b}</td><td>${esc(x.e.s)} · “${esc(x.e.c)}”</td><td class="${c}">${esc(t)}</td></tr>`}).join('')}</tbody></table>
  ${R.upto<Infinity?`<p class="note">Calificación solo del tramo que cantaste: hasta ${fmt(R.upto)}.</p>`:''}<p class="note">${R.how==='beeps'?'Sincronicé tu grabación con los 4 pitidos.':'No oí los 4 pitidos, así que sincronicé comparando tu grabación con la canción (es menos preciso). Para la próxima, empieza a grabar antes de tocar el botón y usa el parlante.'}</p>`;
- $('res').innerHTML=h}
+ $('res').innerHTML=h;bindMix()}
 function saveHist(R){let a=[];try{a=JSON.parse(localStorage.getItem('mevoy-intentos')||'[]')}catch(e){}a.push({d:new Date().toISOString().slice(5,10),s:R.total});a=a.slice(-12);try{localStorage.setItem('mevoy-intentos',JSON.stringify(a))}catch(e){}showHist(a)}
 function showHist(a){if(!a||!a.length)return;$('histBox').hidden=false;$('hist').innerHTML=a.map((x,i)=>`<span>Intento ${i+1} · ${esc(x.d.split('-').reverse().join('/'))} · <b>${Number(x.s)||0}</b></span>`).join('')}
 try{showHist(JSON.parse(localStorage.getItem('mevoy-intentos')||'[]'))}catch(e){}
